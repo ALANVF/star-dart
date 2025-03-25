@@ -1,0 +1,3 @@
+class Eof implements Exception {
+
+}

@@ -1,0 +1,1 @@
+export 'src/star_error.dart' show StarError, StarErrorKind;
