@@ -39,42 +39,42 @@ final class Lexer {
 	void retoken(Tokens tokens) {
 		for(var i = 0; i < tokens.length; i++) {
 			switch((tokens[i], tokens.elementAtOrNull(i+1))) {
-				case (T_Token(k: >= K.lparen && <= K.hashLBrace), T_Token(k: K.lsep)):
+				case (TToken(k: >= K.lparen && <= K.hashLBrace), TToken(k: K.lsep)):
 					tokens.removeAt(i + 1);
 				
-				case (T_Token(k: K.lsep), T_Token(k: K.rparen || K.rbracket || K.rbrace)):
+				case (TToken(k: K.lsep), TToken(k: K.rparen || K.rbracket || K.rbrace)):
 					tokens.removeAt(i);
 				
-				case (T_Token(k: K.dot), T_Name _):
+				case (TToken(k: K.dot), TName _):
 					i++;
 				
-				case (T_Name(span: final span, name: "my"), T_Name _):
-					tokens[i] = T_Token(K.my, span);
+				case (TName(:var span, name: "my"), TName _):
+					tokens[i] = TToken(K.my, span);
 					i++;
-				case (T_Name(span: final span, name: "has"), T_Name _):
-					tokens[i] = T_Token(K.has, span);
+				case (TName(:var span, name: "has"), TName _):
+					tokens[i] = TToken(K.has, span);
 					i++;
 				
-				case (T_Name(span: final span, name: "this"), _): tokens[i] = T_Token(K.this_, span);
-				case (T_Name(span: final span, name: "true"), _): tokens[i] = T_Bool(span, true);
-				case (T_Name(span: final span, name: "false"), _): tokens[i] = T_Bool(span, false);
+				case (TName(:var span, name: "this"), _): tokens[i] = TToken(K.this_, span);
+				case (TName(:var span, name: "true"), _): tokens[i] = TBool(span, true);
+				case (TName(:var span, name: "false"), _): tokens[i] = TBool(span, false);
 
-				case (T_Name(span: final span1, name: "is"), T_Name(span: final span2, name: final attr)):
+				case (TName(span: final span1, name: "is"), TName(span: final span2, name: final attr)):
 					if(attrs[attr] case final _attr?) {
-						tokens[i] = T_Token(K.is_, span1);
-						tokens[i + 1] = T_Token(_attr, span2);
+						tokens[i] = TToken(K.is_, span1);
+						tokens[i + 1] = TToken(_attr, span2);
 						i++;
 					}
 				
-				case (T_Name(span: final span, name: final kw), _):
+				case (TName(:var span, name: final kw), _):
 					if(keywords[kw] case final _kw?) {
-						tokens[i] = T_Token(_kw, span);
+						tokens[i] = TToken(_kw, span);
 					}
 				
-				case (T_Str(segs: final segs), _):
+				case (TStr(:var segs), _):
 					retokenStr(segs);
 				
-				case (T_Token(k: K.lsep), null):
+				case (TToken(k: K.lsep), null):
 					tokens.removeAt(i);
 					return;
 
@@ -85,7 +85,7 @@ final class Lexer {
 
 	void retokenStr(List<StrSegment> segs) {
 		for(final seg in segs) {
-			if(seg is StrSeg_Code) {
+			if(seg is SCode) {
 				retoken(seg.tokens);
 			}
 		}
@@ -175,7 +175,7 @@ final class Lexer {
 					
 					default:
 						reader.next();
-						return T_Token(K.wildcard, span);
+						return TToken(K.wildcard, span);
 				}
 			
 			case Char.COLON:
@@ -189,33 +189,33 @@ final class Lexer {
 				reader.next();
 				if(reader.eatChar(Char.DOT)) {
 					if(reader.eatChar(Char.DOT)) {
-						return T_Token(K.dotDotDot, span);
+						return TToken(K.dotDotDot, span);
 					} else {
 						throw StarError.invalidOperator("..", span);
 					}
 				} else {
-					return T_Token(K.dot, span);
+					return TToken(K.dot, span);
 				}
 			
-			case Char.LPAREN: reader.next(); return T_Token(K.lparen, span);
-			case Char.RPAREN: reader.next(); return T_Token(K.rparen, span);
-			case Char.LBRACK: reader.next(); return T_Token(K.lbracket, span);
-			case Char.RBRACK: reader.next(); return T_Token(K.rbracket, span);
-			case Char.LBRACE: reader.next(); return T_Token(K.lbrace, span);
-			case Char.RBRACE: reader.next(); return T_Token(K.rbrace, span);
-			case Char.TILDE: reader.next(); return T_Token(K.tilde, span);
+			case Char.LPAREN: reader.next(); return TToken(K.lparen, span);
+			case Char.RPAREN: reader.next(); return TToken(K.rparen, span);
+			case Char.LBRACK: reader.next(); return TToken(K.lbracket, span);
+			case Char.RBRACK: reader.next(); return TToken(K.rbracket, span);
+			case Char.LBRACE: reader.next(); return TToken(K.lbrace, span);
+			case Char.RBRACE: reader.next(); return TToken(K.rbrace, span);
+			case Char.TILDE: reader.next(); return TToken(K.tilde, span);
 
 			case Char.DQUOTE:
 				reader.next();
-				return reader.eatChar(Char.DQUOTE)? T_Str(span, []) : readStr();
+				return reader.eatChar(Char.DQUOTE)? TStr(span, []) : readStr();
 
 			case Char.HASH:
 				reader.next();
 				switch(reader.unsafePeek()) {
 					case >= Char.a && <= Char.z: return readTag();
-					case Char.LPAREN: reader.next(); return T_Token(K.hashLParen, span);
-					case Char.LBRACK: reader.next(); return T_Token(K.hashLBracket, span);
-					case Char.LBRACE: reader.next(); return T_Token(K.hashLBrace, span);
+					case Char.LPAREN: reader.next(); return TToken(K.hashLParen, span);
+					case Char.LBRACK: reader.next(); return TToken(K.hashLBracket, span);
+					case Char.LBRACE: reader.next(); return TToken(K.hashLBrace, span);
 					case Char.DQUOTE: reader.next(); return readChar();
 					default:
 						throw StarError.invalidInputAfterHash(
@@ -229,35 +229,35 @@ final class Lexer {
 			case Char.EQ:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.GT: reader.next(); return T_Token(K.eqGt, span);
+					case Char.GT: reader.next(); return TToken(K.eqGt, span);
 					case Char.EQ:
 						reader.next();
 						throw StarError.invalidEqEq(span);
-					default: return T_Token(K.eq, span);
+					default: return TToken(K.eq, span);
 				}
 			
 			// ?, ?=
 			case Char.QUESTION:
 				reader.next();
 				if(reader.eatChar(Char.EQ))
-					return T_Token(K.questionEq, span);
+					return TToken(K.questionEq, span);
 				else
-					return T_Token(K.question, span);
+					return TToken(K.question, span);
 			
 
 			// !, !=, !!, !!=
 			case Char.BANG:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.bangEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.bangEq, span); 
 					case Char.BANG:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.bangBangEq, span);
+							return TToken(K.bangBangEq, span);
 						else
-							return T_Token(K.bangBang, span);
+							return TToken(K.bangBang, span);
 					
-					default: return T_Token(K.bang, span);
+					default: return TToken(K.bang, span);
 				}
 			
 
@@ -265,16 +265,16 @@ final class Lexer {
 			case Char.PLUS:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.plusEq, span); 
-					case Char.PLUS: reader.next(); return T_Token(K.plusPlus, span); 
-					default: return T_Token(K.plus, span);
+					case Char.EQ: reader.next(); return TToken(K.plusEq, span); 
+					case Char.PLUS: reader.next(); return TToken(K.plusPlus, span); 
+					default: return TToken(K.plus, span);
 				}
 			
 			// -, -=, --, ->
 			case Char.MINUS:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.minusEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.minusEq, span); 
 					case Char.MINUS:
 						reader.next();
 						switch(reader.unsafePeek()) {
@@ -286,7 +286,7 @@ final class Lexer {
 								while(reader.eatChar(Char.MINUS)) depth++;
 
 								if(reader.eatChar(Char.GT)) {
-									return T_Cascade(span, depth: depth);
+									return TCascade(span, depth: depth);
 								} else {
 									final end = here;
 									throw StarError.unterminatedCascade(
@@ -295,27 +295,27 @@ final class Lexer {
 									);
 								}
 							
-							case Char.GT: reader.next(); return T_Cascade(span, depth: 2); 
-							default: return T_Token(K.minusMinus, span);
+							case Char.GT: reader.next(); return TCascade(span, depth: 2); 
+							default: return TToken(K.minusMinus, span);
 						}
 					
-					case Char.GT: reader.next(); return T_Cascade(span, depth: 1); 
-					default: return T_Token(K.minus, span);
+					case Char.GT: reader.next(); return TCascade(span, depth: 1); 
+					default: return TToken(K.minus, span);
 				}
 			
 			// *, *=, **, **=
 			case Char.STAR:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.starEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.starEq, span); 
 					case Char.STAR:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.starStarEq, span);
+							return TToken(K.starStarEq, span);
 						else
-							return T_Token(K.starStar, span);
+							return TToken(K.starStar, span);
 					
-					default: return T_Token(K.star, span);
+					default: return TToken(K.star, span);
 				}
 			
 
@@ -323,15 +323,15 @@ final class Lexer {
 			case Char.FSLASH:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.divEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.divEq, span); 
 					case Char.FSLASH:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.divDivEq, span);
+							return TToken(K.divDivEq, span);
 						else
-							return T_Token(K.divDiv, span);
+							return TToken(K.divDiv, span);
 					
-					default: return T_Token(K.div, span);
+					default: return TToken(K.div, span);
 				}
 			
 
@@ -339,15 +339,15 @@ final class Lexer {
 			case Char.PERCENT:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.modEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.modEq, span); 
 					case Char.PERCENT:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.modModEq, span);
+							return TToken(K.modModEq, span);
 						else
-							return T_Token(K.modMod, span);
+							return TToken(K.modMod, span);
 					
-					default: return T_Token(K.mod, span);
+					default: return TToken(K.mod, span);
 				}
 			
 
@@ -355,15 +355,15 @@ final class Lexer {
 			case Char.AND:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.andEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.andEq, span); 
 					case Char.AND:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.andAndEq, span);
+							return TToken(K.andAndEq, span);
 						else
-							return T_Token(K.andAnd, span);
+							return TToken(K.andAnd, span);
 					
-					default: return T_Token(K.and, span);
+					default: return TToken(K.and, span);
 				}
 			
 
@@ -371,15 +371,15 @@ final class Lexer {
 			case Char.PIPE:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.barEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.barEq, span); 
 					case Char.PIPE:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.barBarEq, span);
+							return TToken(K.barBarEq, span);
 						else
-							return T_Token(K.barBar, span);
+							return TToken(K.barBar, span);
 					
-					default: return T_Token(K.bar, span);
+					default: return TToken(K.bar, span);
 				}
 			
 
@@ -387,15 +387,15 @@ final class Lexer {
 			case Char.CARET:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.caretEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.caretEq, span); 
 					case Char.CARET:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.caretCaretEq, span);
+							return TToken(K.caretCaretEq, span);
 						else
-							return T_Token(K.caretCaret, span);
+							return TToken(K.caretCaret, span);
 					
-					default: return T_Token(K.caret, span);
+					default: return TToken(K.caret, span);
 				}
 			
 
@@ -403,15 +403,15 @@ final class Lexer {
 			case Char.LT:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.ltEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.ltEq, span); 
 					case Char.LT:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.ltLtEq, span);
+							return TToken(K.ltLtEq, span);
 						else
-							return T_Token(K.ltLt, span);
+							return TToken(K.ltLt, span);
 					
-					default: return T_Token(K.lt, span);
+					default: return TToken(K.lt, span);
 				}
 			
 
@@ -419,15 +419,15 @@ final class Lexer {
 			case Char.GT:
 				reader.next();
 				switch(reader.unsafePeek()) {
-					case Char.EQ: reader.next(); return T_Token(K.gtEq, span); 
+					case Char.EQ: reader.next(); return TToken(K.gtEq, span); 
 					case Char.GT:
 						reader.next();
 						if(reader.eatChar(Char.EQ))
-							return T_Token(K.gtGtEq, span);
+							return TToken(K.gtGtEq, span);
 						else
-							return T_Token(K.gtGt, span);
+							return TToken(K.gtGt, span);
 					
-					default: return T_Token(K.gt, span);
+					default: return TToken(K.gt, span);
 				}
 			
 			case Char.BACKTICK:
@@ -452,7 +452,7 @@ final class Lexer {
 			_ => false
 		});
 
-		return reader.eatChar(Char.COMMA)? readCSep() : T_Token(K.lsep, span);
+		return reader.eatChar(Char.COMMA)? readCSep() : TToken(K.lsep, span);
 	}
 
 	Token readCSep() {
@@ -466,7 +466,7 @@ final class Lexer {
 			trim();
 		}
 
-		return T_Token(K.csep, span);
+		return TToken(K.csep, span);
 	}
 
 	Token readComma() {
@@ -480,7 +480,7 @@ final class Lexer {
 			return readCSep();
 		}
 
-		return T_Token(K.comma, span);
+		return TToken(K.comma, span);
 	}
 
 	Token readNumberStart() {
@@ -514,7 +514,7 @@ final class Lexer {
 				Span(end, endName, source)
 			);
 		} else {
-			return T_Hex(span, int.parse(reader.substring(start), radix: 16));
+			return THex(span, int.parse(reader.substring(start), radix: 16));
 		}
 	}
 
@@ -564,11 +564,11 @@ final class Lexer {
 			);
 		} else {
 			if(dec == null && (exp == null || !exp.startsWith("-"))) {
-				return T_Int(span, exp == null
+				return TInt(span, exp == null
 									? int.parse(int_)
 									: double.parse("${int_}e$exp").toInt());
 			} else {
-				return T_Dec(span, double.parse(exp == null? "$int_.$dec" : "$int_.${dec}e$exp"));
+				return TDec(span, double.parse(exp == null? "$int_.$dec" : "$int_.${dec}e$exp"));
 			}
 		}
 	}
@@ -602,7 +602,7 @@ final class Lexer {
 
 		final n = reader.substring(start);
 
-		return reader.eatChar(Char.COLON)? T_Label(span, n) : T_Name(span, n);
+		return reader.eatChar(Char.COLON)? TLabel(span, n) : TName(span, n);
 	}
 
 	Token readPunned() {
@@ -633,7 +633,7 @@ final class Lexer {
 
 		while(reader.peekAlnumQ()) reader.next();
 
-		return T_Punned(span, reader.substring(start));
+		return TPunned(span, reader.substring(start));
 	}
 
 	Token readTypeName() {
@@ -651,7 +651,7 @@ final class Lexer {
 				Span(begin.advance(1), end, source)
 			);
 		} else {
-			return T_Typename(span, n);
+			return TTypename(span, n);
 		}
 	}
 
@@ -664,7 +664,7 @@ final class Lexer {
 
 		reader.next();
 
-		return T_Litsym(span, sym);
+		return TLitsym(span, sym);
 	}
 
 	Token readTag() {
@@ -672,7 +672,7 @@ final class Lexer {
 
 		while(reader.peekAlnum()) reader.next();
 
-		return T_Tag(span, reader.substring(start));
+		return TTag(span, reader.substring(start));
 	}
 
 	Token readChar() {
@@ -726,7 +726,7 @@ final class Lexer {
 		};
 		
 		if(reader.eatChar(Char.DQUOTE)) {
-			return T_Char(span, char);
+			return TChar(span, char);
 		} else {
 			final end = here;
 			throw StarError.unterminatedChar(
@@ -800,7 +800,7 @@ final class Lexer {
 		loop: while(reader.hasNext) switch(reader.eat()) {
 			case Char.DQUOTE:
 				if(start != reader.offset - 1) {
-					segments.add(StrSeg_Str(reader.substring(start, reader.offset - 1)));
+					segments.add(SStr(reader.substring(start, reader.offset - 1)));
 				}
 				break loop;
 			
@@ -828,9 +828,9 @@ final class Lexer {
 						trim();
 					}
 
-					seg = StrSeg_Code(tokens);
+					seg = SCode(tokens);
 				} else {
-					seg = StrSeg_Char(switch(esc) {
+					seg = SChar(switch(esc) {
 						final c && (Char.BSLASH || Char.DQUOTE) => c,
 						Char.t => Char.TAB,
 						Char.n => Char.LF,
@@ -859,7 +859,7 @@ final class Lexer {
 				}
 
 				if(start != end - 1) {
-					segments.add(StrSeg_Str(reader.substring(start, end - 1)));
+					segments.add(SStr(reader.substring(start, end - 1)));
 				}
 				start = reader.offset;
 				
@@ -872,7 +872,7 @@ final class Lexer {
 			throw StarError.unterminatedStr(Span.at(begin, source));
 		}
 		
-		return T_Str(span, segments);
+		return TStr(span, segments);
 	}
 
 	Token readAnonArg() {
@@ -896,7 +896,7 @@ final class Lexer {
 					Span(end, endName, source)
 				);
 			} else {
-				return T_AnonArg(span, depth: depth, nth: int.parse(reader.substring(start)));
+				return TAnonArg(span, depth: depth, nth: int.parse(reader.substring(start)));
 			}
 		} else {
 			final end = here;

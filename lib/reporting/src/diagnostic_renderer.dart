@@ -101,12 +101,12 @@ class DiagnosticRenderer {
 		
 		for(final line in linePrimitives) {
 			switch(line) {
-				case _Source(:final source, :final line):
+				case _Source(:var source, :var line):
 					buffer.write('${(line + 1).toString().padLeft(lineNumberPadding.length)} $_line_bar');
 					renderSourceLine(source, line);
 					buffer.newline();
 
-				case _Annotation(:final line, :final annotations):
+				case _Annotation(:var line, :var annotations):
 					renderAnnotationLines(line, annotations, '$lineNumberPadding $_line_bar');
 
 				case _Dot():

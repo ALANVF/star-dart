@@ -110,6 +110,16 @@ extension type const Char(int char) implements int {
 	bool isAsciiControl() => (0 <= char && char < 32) || char == 127;
 }
 
+sealed class Either<L, R> {}
+final class Left<L> extends Either<L, dynamic> {
+	final L left;
+	Left(this.left);
+}
+final class Right<R> extends Either<dynamic, R> {
+	final R right;
+	Right(this.right);
+}
+
 extension IntUtil on int {
 	Char get char => Char(this);
 
@@ -148,6 +158,8 @@ extension ListUtil<T> on List<T> {
 		this.addAll(List.filled(times, value));
 	}
 
+	List<T> copy() => [...this];
+
 	Map<U, List<T>> groupBy<U>(U Function(T) fn, [bool Function(U, U)? equal]) {
 		final found = <U, List<T>>{};
 
@@ -173,7 +185,7 @@ extension ListUtil<T> on List<T> {
 		return found;
 	}
 
-	List<T> sorted([int Function(T, T)? compare]) => [...this]..sort(compare);
+	List<T> sorted([int Function(T, T)? compare]) => this.copy()..sort(compare);
 }
 
 extension SetUtil<T> on Set<T> {

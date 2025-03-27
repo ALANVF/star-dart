@@ -1,7 +1,7 @@
 import 'package:star/util.dart';
 import 'package:star/reporting/reporting.dart';
 import 'package:star/text/text.dart';
-//import 'package:star/lexing/lexing.dart';
+import 'package:star/lexing/lexing.dart';
 
 enum StarErrorKind {
 	unterminatedComment,
@@ -29,6 +29,14 @@ enum StarErrorKind {
 	unterminatedStr,
 	nameAfterAnonArg,
 	unterminatedAnonArg,
+
+	unexpectedTokenWantedSep,
+	unexpectedToken,
+	unexpectedEOF,
+	noGenericMember,
+	noGenericCase,
+	noGenericDeinit,
+	nextWithRequiresExpr
 }
 
 class StarError {
@@ -40,7 +48,7 @@ class StarError {
 		diag = Diagnostic.error(
 			message: "Syntax error",
 			info: [
-				Info.primary(span: begin, message: "Unterminated comment"),
+				Info.primary(span: begin, message: "Unterminated comment")
 			]
 		);
 	
@@ -49,7 +57,7 @@ class StarError {
 		diag = Diagnostic.error(
 			message: "Syntax error",
 			info: [
-				Info.primary(span: span, message: "Invalid operator `$name`"),
+				Info.primary(span: span, message: "Invalid operator `$name`")
 			]
 		);
 
@@ -352,6 +360,115 @@ class StarError {
 					message: "Was expecting a number here"
 				),
 				Info.secondary(span: begin)
+			]
+		);
+	
+
+	// parser errors
+
+	StarError.unexpectedTokenWantedSep(Token token):
+		kind = StarErrorKind.unexpectedTokenWantedSep,
+		diag = Diagnostic.error(
+			message: "Syntax error",
+			info: [
+				Info.primary(
+					span: token.span,
+					message: "Unexpected ${token.k}, was expecting a comma or newline instead"
+				)
+			]
+		);
+	
+	StarError.unexpectedToken(Token first, Token? last):
+		kind = StarErrorKind.unexpectedToken,
+		diag = Diagnostic.error(
+			message: "Syntax error",
+			info: (last != null && last != first) ? [
+				Info.primary(
+					span: last.span,
+					message: "Unexpected ${last.k}"
+				),
+				Info.secondary(
+					span: first.span,
+					message: "Starting here"
+				)
+			] : [
+				Info.primary(
+					span: first.span,
+					message: "Unexpected ${first.k}"
+				)
+			]
+		);
+
+	StarError.unexpectedEOF(Token first, Token last):
+		kind = StarErrorKind.unexpectedEOF,
+		diag = Diagnostic.error(
+			message: "Syntax error",
+			info: first == last ? [
+				Info.primary(
+					span: last.span,
+					message: "Unexpected end of file after ${last.k}"
+				)
+			] : [
+				Info.primary(
+					span: last.span,
+					message: "Unexpected end of file after ${last.k}"
+				),
+				Info.secondary(
+					span: first.span,
+					message: "Starting here"
+				)
+			]
+		);
+
+	StarError.noGenericMember(Span span):
+		kind = StarErrorKind.noGenericMember,
+		diag = Diagnostic.error(
+			message: "Invalid member",
+			info: [
+				Info.primary(
+					span: span,
+					message: "Members are not allowed to be generic"
+				)
+			]
+		);
+
+	StarError.noGenericCase(Span span):
+		kind = StarErrorKind.noGenericCase,
+		diag = Diagnostic.error(
+			message: "Invalid case",
+			info: [
+				Info.primary(
+					span: span,
+					message: "Cases are not allowed to be generic"
+				)
+			]
+		);
+
+	StarError.noGenericDeinit(Span span):
+		kind = StarErrorKind.noGenericDeinit,
+		diag = Diagnostic.error(
+			message: "Invalid deinitializer",
+			info: [
+				Info.primary(
+					span: span,
+					message: "Deinitializers are not allowed to be generic"
+				)
+			]
+		);
+
+	StarError.nextWithRequiresExpr(Span span1, Span span2):
+		kind = StarErrorKind.nextWithRequiresExpr,
+		diag = Diagnostic.error(
+			message: "Invalid statement",
+			info: [
+				Info.primary(
+					span: span1,
+					message: "`next` statement with `with:` label requires at least one value"
+				),
+				Info.secondary(
+					span: span2,
+					message: "Here"
+				)
 			]
 		);
 }

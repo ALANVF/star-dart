@@ -4,6 +4,7 @@ import 'text/text.dart';
 import 'lexing/lexing.dart';
 import 'reporting/reporting.dart';
 import 'package:star/errors/errors.dart';
+import 'ast/ast.dart';
 
 void main() {
 	final src = SourceFile("./test.star");
