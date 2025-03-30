@@ -176,14 +176,6 @@ Result<Decl> nextDecl(Typevars typevars, Tokens tokens) => switch(tokens) {
 Result<Typevar> parseTypevar(Span _1, Tokens tokens) {
 	switch(parseTypeDeclName(tokens)) {
 		case Success(made: (var name, var params), :var rest):
-			Type? repr; switch(parseTypeAnno(tokens)) {
-				case Success(:var made, rest: var rest2):
-					rest = rest2;
-					repr = made;
-				case Failure(): repr = null;
-				case var err: return err.cast();
-			}
-
 			List<Type>? parents; switch(parseTypeParents(rest)) {
 				case Success(:var made, rest: var rest2):
 					rest = rest2;
