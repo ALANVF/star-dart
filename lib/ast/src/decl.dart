@@ -25,12 +25,12 @@ abstract class NamedDecl extends Decl {
 }
 
 mixin IsParametric on Decl {
-	List<TypeArgs>? get params;
+	TypeArgs? get params;
 }
 
 abstract class TypeDecl extends NamedDecl with IsGeneric, IsParametric {
 	final List<Typevar> typevars;
-	final List<TypeArgs>? params;
+	final TypeArgs? params;
 
 	TypeDecl(super.span, {
 		required super.name,

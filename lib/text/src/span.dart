@@ -24,7 +24,7 @@ class Span {
 
 	Span union(Span other) => Span.range(this, other);
 
-	String display() {
+	String prettyPrint() {
 		return "${source?.path ?? "(Unknown)"}:${start.line + 1}:${start.column}";
 	}
 

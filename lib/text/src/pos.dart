@@ -16,5 +16,5 @@ extension type Pos._(int i) {
 	Pos advance([int amount = 1]) => Pos._(i + amount);
 	Pos newline() => Pos._(i + 0x00010000);
 
-	//@redeclare String toString() => "($line, $column)";
+	String prettyPrint() => "($line, $column)";
 }

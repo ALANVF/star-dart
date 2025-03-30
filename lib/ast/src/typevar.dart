@@ -18,7 +18,7 @@ class TypevarAttrs {
 
 class Typevar extends NamedDecl implements HasParents, IsParametric {
 	final TypevarAttrs attrs;
-	final List<TypeArgs>? params;
+	final TypeArgs? params;
 	final List<Type>? parents;
 	final (Span, TypevarRule)? rule;
 	final Body? body;

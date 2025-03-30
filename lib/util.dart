@@ -1,5 +1,8 @@
 // ignore_for_file: non_constant_identifier_names, constant_identifier_names
 
+import 'dart:io';
+import 'dart:mirrors';
+
 extension type const Char(int char) implements int {
 	static const
 		TAB = Char(9),
@@ -112,12 +115,12 @@ extension type const Char(int char) implements int {
 
 sealed class Either<L, R> {}
 final class Left<L> extends Either<L, dynamic> {
-	final L left;
-	Left(this.left);
+	final L v;
+	Left(this.v);
 }
 final class Right<R> extends Either<dynamic, R> {
-	final R right;
-	Right(this.right);
+	final R v;
+	Right(this.v);
 }
 
 extension IntUtil on int {
@@ -193,4 +196,88 @@ extension SetUtil<T> on Set<T> {
 	void operator []=(T value, bool state) {
 		state? add(value) : remove(value);
 	}
+}
+
+String _symName(Symbol sym) {
+	final fs = "$sym";
+	return fs.substring(8, fs.length - 2);
+}
+
+String prettyPrint(dynamic value, [Set<dynamic>? cache]) {
+	if(cache?.contains(value) == true) return "...";
+	cache ??= {};
+	
+	switch(value) {
+		case Function f: return value.runtimeType.toString();
+		case List l: return "[" + l.map((v) => prettyPrint(v, cache)).join(", ") + "]";
+		case Map m: return "[" + [for(final MapEntry(:key, :value) in m.entries)
+									prettyPrint(key, cache) + ": " + prettyPrint(value, cache)].join(", ") + "]";
+		case int _ || double _ || bool _ || Type _ || File _ || null: return "$value";
+		case String s: return reflect(s).toString().replaceFirst("InstanceMirror on ", "");
+
+		default:
+	}
+
+	cache.add(value);
+
+	final v = reflect(value);
+	final t = v.type;
+
+	if(t.instanceMembers.containsKey(Symbol("prettyPrint"))) {
+		return value.prettyPrint();
+	}
+	final tn = _symName(t.simpleName);
+	var s = (tn == "Record" ? "" : tn) + "(";
+
+	var first = true;
+	if(tn == "Record") {
+		try {
+			s += prettyPrint(v.getField(Symbol("\$1")).reflectee, cache);
+
+			loop: for(var i = 2; ; i++) {
+				try {
+					final f = v.getField(Symbol("\$$i")).reflectee;
+					s += ", " + prettyPrint(f, cache);
+				} catch(_) {
+					break loop;
+				}
+			}
+		} catch(_) {
+			for(final match in RegExp("([\\w\\\$]+): ").allMatches(v.toString())) {
+				final fs = match[1]!;
+				final f = v.getField(Symbol(fs)).reflectee;
+				
+				if(first) {
+					first = false;
+				} else {
+					s += ", ";
+				}
+				
+				s += fs + ": " + prettyPrint(f, cache);
+			}
+		}
+	} else {
+		for(final MapEntry(key: sym, value: field) in t.instanceMembers.entries) {
+			final fs = _symName(sym);
+
+			if(fs case "hashCode" || "runtimeType" || "copyWith") continue;
+			if(fs.startsWith("_")) continue;
+			if(!field.isGetter) continue;
+
+			final f = v.getField(sym).reflectee;
+
+			if(f is Iterator) continue;
+
+			if(first) {
+				first = false;
+			} else {
+				s += ", ";
+			}
+			
+			s += fs + ": " + prettyPrint(f, cache);
+		}
+	}
+
+	cache.remove(value);
+	return s + ")";
 }

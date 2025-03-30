@@ -9,7 +9,7 @@ part 'type.freezed.dart';
 sealed class Type {
 	Type();
 
-	factory Type.path(List<TypeSeg> segs, [List<Span>? leading]) => Type_Path(segs, leading);
+	factory Type.path(List<TypeSeg> segs, List<Span>? leading) => Type_Path(segs, leading);
 	factory Type.blank(Span blank, [TypeArgs? args]) => Type_Blank(blank, args);
 
 	Span get span;
@@ -69,6 +69,7 @@ class TypeSeg {
 }
 
 typedef TypeArgs = Delims<List<Type>>;
+typedef TypeParams = TypeArgs;
 
 @freezed
 sealed class TypeSpec with _$TypeSpec { TypeSpec._();

@@ -33,7 +33,7 @@ final class Lexer {
 		return (errors, tokens);
 	}
 
-	static final keywords = { for(K k = K.module; k <= K.catch_; k++) k.name: k };
+	static final keywords = { for(K k = K.module; k <= K.catch_; k++) k.name.replaceFirst("_", ""): k };
 	static final attrs = { for(K k = K.static; k <= K.macro; k++) k.name: k };
 
 	void retoken(Tokens tokens) {

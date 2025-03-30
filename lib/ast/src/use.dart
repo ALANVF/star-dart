@@ -20,13 +20,15 @@ sealed class UseTree with _$UseTree {
 
 @freezed
 sealed class UseFrom with _$UseFrom {
-	factory UseFrom.type(Type type) = UFType;
-	factory UseFrom.file(Span span, String file) = UFFile;
+	factory UseFrom.type(Span span, Type type) = UFType;
+	factory UseFrom.file(Span span, (Span, String) file) = UFFile;
+
+	Span get span;
 }
 
 @Freezed(copyWith: false) // fix bug where it tries generating `@pragma(...)` (which doesn't exist)
 sealed class UseKind with _$UseKind { UseKind._();
-	factory UseKind.import(UseTree tree, (Span, UseFrom)? from, (Span, UseTree)? as) = UImport;
+	factory UseKind.import(UseTree tree, UseFrom? from, (Span, UseTree)? as) = UImport;
 	factory UseKind.pragma(Ident pragma) = UPragma;
 }
 
