@@ -1,2 +1,2 @@
 export 'src/result.dart';
-export 'src/parser.dart';
+export 'src/parser.dart' hide T;

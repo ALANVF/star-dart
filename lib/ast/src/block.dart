@@ -1,8 +1,5 @@
 import 'package:star/text/text.dart';
 import 'stmt.dart';
+import 'delims.dart';
 
-typedef Block = ({
-	Span begin,
-	List<Stmt> stmts,
-	Span end
-});
+typedef Block = Delims<List<Stmt>>;

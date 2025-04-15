@@ -41,10 +41,10 @@ enum R_Logic { and, or, xor, nor }
 @freezed
 sealed class TypevarRule with _$TypevarRule {
 	factory TypevarRule.negate(Span span, Type type) = RNegate;
-	factory TypevarRule.exists(Span span, Type type) = RExists;
+	factory TypevarRule.exists(Type type, Span span) = RExists;
 	factory TypevarRule.test(Type left, R_Test op, List<(Span, Type)> chain) = RTest;
 	factory TypevarRule.cmp(Type left, List<(Span, R_Cmp, Type)> chain) = RCmp;
-	factory TypevarRule.logic(TypevarRule left, R_Logic op, TypevarRule right) = RLogic;
+	factory TypevarRule.logic(TypevarRule left, (Span, R_Logic) op, TypevarRule right) = RLogic;
 	factory TypevarRule.not(Span span, TypevarRule rule) = RNot;
 	factory TypevarRule.paren(Span begin, TypevarRule rule, Span end) = RParen;
 }

@@ -22,11 +22,43 @@ module A of B, C.D is friend Foo is sealed is native `abc` {
 	}
 
 	class Banana of Bar, Def is hidden {
-		
+		my a (Int)
+		my b (Str) is getter `banana`
+
+		on [abc] (Void)
+		on [a: (Int) b: (Str)] is unordered
+
+		init [new]
+
+		operator `+` [other (Banana)] (Banana)
+		operator `!` (Bool)
 	}
 
-	type T
+	type T of A if T != Void && (A? || !B)
 	kind Options[T] is flags {
+		has abc
+		has def
+		has [foo]
+		has [bar: a (Int)] {
+			do label: `a` {
+				break `a`
+			}
+			break
+			next `a`
+		}
+	}
+
+	alias A = Int
+	alias B is hidden 
+	alias C (Str) is noinherit {
+		alias T
+	}
+
+	category A for B is hidden {
+
+	}
+
+	category C {
 
 	}
 }

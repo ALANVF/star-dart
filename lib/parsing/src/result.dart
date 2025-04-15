@@ -14,6 +14,8 @@ final class Success<T> extends Result<T> {
 
 	Success(this.made, this.rest);
 
+	(T, Tokens) get s => (made, rest);
+
 	Success<U> cast<U>() => Success(made as U, rest);
 }
 

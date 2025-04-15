@@ -5,6 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:star/util.dart';
 import 'package:star/text/text.dart';
 import 'ident.dart';
+import 'delims.dart';
 import 'block.dart';
 import 'expr.dart';
 
@@ -16,10 +17,10 @@ enum LoopStop { to, upto, downto, times }
 @freezed
 sealed class Then with _$Then { Then._();
 	factory Then.block(Block block) = ThenBlock;
-	factory Then.stmt(Stmt stmt) = ThenStmt;
+	factory Then.stmt(Span span, Stmt stmt) = ThenStmt;
 
 	List<Stmt> get stmts => switch(this) {
-		ThenBlock(:var block) => block.stmts,
+		ThenBlock(:var block) => block.of,
 		ThenStmt(:var stmt) => [stmt]
 	};
 }
@@ -29,7 +30,7 @@ typedef StmtBody = Then;
 typedef PatternAt = ({
 	Span span,
 	Expr pattern,
-	Expr? cond,
+	(Span, Expr)? cond,
 	Then then
 });
 
@@ -52,14 +53,14 @@ sealed class Stmt with _$Stmt { Stmt._();
 	factory Stmt.cases(
 		Span span,
 		List<CaseAt> cases,
-		(Span, Then) elseBlk
+		(Span, Then)? elseBlk
 	) = SCase;
 
 	factory Stmt.match(
 		Span span,
 		Expr value,
 		List<PatternAt> cases,
-		(Span, Then) elseBlk
+		(Span, Then)? elseBlk
 	) = SMatch;
 
 	factory Stmt.matchAt(
@@ -95,8 +96,9 @@ sealed class Stmt with _$Stmt { Stmt._();
 	factory Stmt.forRange(
 		Span span,
 		Expr var1,
-		LoopStart start,
-		LoopStop stop,
+		(Span, LoopStart, Expr) start,
+		(Span, LoopStop, Expr) stop,
+		(Span, Expr)? step,
 		(Span, Expr)? whileCond,
 		(Span, Ident)? label,
 		Then then,

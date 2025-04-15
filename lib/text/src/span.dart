@@ -25,7 +25,7 @@ class Span {
 	Span union(Span other) => Span.range(this, other);
 
 	String prettyPrint() {
-		return "${source?.path ?? "(Unknown)"}:${start.line + 1}:${start.column}";
+		return "\x1b[32m${source?.path ?? "(Unknown)"}\x1b[0m:\x1b[34m${start.line + 1}\x1b[0m:\x1b[34m${start.column}\x1b[0m";
 	}
 
 	//@override String toString() {}

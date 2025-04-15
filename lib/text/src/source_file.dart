@@ -54,4 +54,6 @@ class SourceFile implements Comparable<SourceFile> {
 	}
 
 	@override String toString() => file.path;
+
+	String prettyPrint() => file.path;
 }

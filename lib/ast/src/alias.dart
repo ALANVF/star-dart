@@ -4,13 +4,14 @@ import 'package:star/text/text.dart';
 import 'ident.dart';
 import 'type.dart';
 import 'decl.dart';
+import 'delims.dart';
 
 part 'alias.freezed.dart';
 
 class AliasAttrs {
 	(Span, Type?)? isHidden;
 	(Span, TypeSpec)? isFriend;
-	Span? isNoInherit;
+	Span? isNoinherit;
 }
 
 @freezed

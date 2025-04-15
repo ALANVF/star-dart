@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:star/text/text.dart';
 import 'ident.dart';
+import 'delims.dart';
 import 'block.dart';
 import 'expr.dart';
 import 'message.dart';

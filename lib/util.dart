@@ -203,17 +203,74 @@ String _symName(Symbol sym) {
 	return fs.substring(8, fs.length - 2);
 }
 
-String prettyPrint(dynamic value, [Set<dynamic>? cache]) {
-	if(cache?.contains(value) == true) return "...";
-	cache ??= {};
+String prettyPrint(dynamic value) => _prettyPrint(value, <dynamic>{}, 0);
+
+String _tabs(int level) => "  " * level;
+String _nltabs(int level) => "\n" + _tabs(level);
+
+String _prettyPrint(dynamic value, Set<dynamic> cache, int level) {
+	if(cache.contains(value) == true) return "...";
 	
 	switch(value) {
-		case Function f: return value.runtimeType.toString();
-		case List l: return "[" + l.map((v) => prettyPrint(v, cache)).join(", ") + "]";
-		case Map m: return "[" + [for(final MapEntry(:key, :value) in m.entries)
-									prettyPrint(key, cache) + ": " + prettyPrint(value, cache)].join(", ") + "]";
-		case int _ || double _ || bool _ || Type _ || File _ || null: return "$value";
-		case String s: return reflect(s).toString().replaceFirst("InstanceMirror on ", "");
+		case Function _: return value.runtimeType.toString();
+		case List l:
+			if(l.isEmpty) return "[]";
+
+			var res = "[";
+			level++;
+
+			var first = true;
+			for(final value in l) {
+				if(first) first = false; else res += ",";
+				res += _nltabs(level);
+				res += _prettyPrint(value, cache, level);
+			}
+
+			level--;
+			return res + _nltabs(level) + "]";
+		
+		case Map m:
+			//return "[" + [for(final MapEntry(:key, :value) in m.entries)
+			//						_prettyPrint(key, cache, level) + ": " + _prettyPrint(value, cache, level)].join(", ") + "]";
+			if(m.isEmpty) return "{}";
+			
+			var res = "{";
+			level++;
+
+			var first = true;
+			for(final MapEntry(:key, :value) in m.entries) {
+				if(first) first = false; else res += ",";
+				res += _nltabs(level);
+				res += _prettyPrint(key, cache, level);
+				res += ": ";
+				res += _prettyPrint(value, cache, level);
+			}
+
+			level--;
+			return res + _nltabs(level) + "}";
+		
+		case Set s:
+			if(s.isEmpty) return "{}";
+
+			var res = "{";
+			level++;
+
+			var first = true;
+			for(final value in s) {
+				if(first) first = false; else res += ",";
+				res += _nltabs(level);
+				res += _prettyPrint(value, cache, level);
+			}
+
+			level--;
+			return res + _nltabs(level) + "}";
+
+		case int _ || double _: return "\x1b[34m$value\x1b[0m";
+		case bool _ || null: return "\x1b[35m$value\x1b[0m";
+		case Type _: return "\x1b[33m$value\x1b[0m";
+		case File _: return "$value";
+		case String s: return "\x1b[32m"+reflect(s).toString().replaceFirst("InstanceMirror on ", "")+"\x1b[0m";
+		case Enum e: return "\x1b[33m${value.runtimeType}\x1b[0m.\x1b[35m${e.name}\x1b[0m";
 
 		default:
 	}
@@ -227,17 +284,17 @@ String prettyPrint(dynamic value, [Set<dynamic>? cache]) {
 		return value.prettyPrint();
 	}
 	final tn = _symName(t.simpleName);
-	var s = (tn == "Record" ? "" : tn) + "(";
+	var s = "\x1b[33m"+(tn == "Record" ? "" : tn) + "\x1b[0m(";
 
 	var first = true;
 	if(tn == "Record") {
 		try {
-			s += prettyPrint(v.getField(Symbol("\$1")).reflectee, cache);
+			s += _prettyPrint(v.getField(#$1).reflectee, cache, level);
 
 			loop: for(var i = 2; ; i++) {
 				try {
 					final f = v.getField(Symbol("\$$i")).reflectee;
-					s += ", " + prettyPrint(f, cache);
+					s += ", " + _prettyPrint(f, cache, level);
 				} catch(_) {
 					break loop;
 				}
@@ -253,14 +310,16 @@ String prettyPrint(dynamic value, [Set<dynamic>? cache]) {
 					s += ", ";
 				}
 				
-				s += fs + ": " + prettyPrint(f, cache);
+				s += "\x1b[31m$fs\x1b[0m" + ": " + _prettyPrint(f, cache, level);
 			}
 		}
 	} else {
+		level++;
 		for(final MapEntry(key: sym, value: field) in t.instanceMembers.entries) {
 			final fs = _symName(sym);
 
 			if(fs case "hashCode" || "runtimeType" || "copyWith") continue;
+			if(fs case "simpleName" || "displayName") continue; // NOTE: for this project only
 			if(fs.startsWith("_")) continue;
 			if(!field.isGetter) continue;
 
@@ -273,9 +332,13 @@ String prettyPrint(dynamic value, [Set<dynamic>? cache]) {
 			} else {
 				s += ", ";
 			}
+
+			s += _nltabs(level);
 			
-			s += fs + ": " + prettyPrint(f, cache);
+			s += "\x1b[31m$fs\x1b[0m" + ": " + _prettyPrint(f, cache, level);
 		}
+		level--;
+		s += _nltabs(level);
 	}
 
 	cache.remove(value);
