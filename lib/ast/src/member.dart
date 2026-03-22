@@ -1,4 +1,3 @@
-import 'package:star/util.dart';
 import 'package:star/text/text.dart';
 import 'ident.dart';
 import 'type.dart';

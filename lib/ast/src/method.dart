@@ -1,6 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:star/util.dart';
 import 'package:star/text/text.dart';
 import 'delims.dart';
 import 'ident.dart';

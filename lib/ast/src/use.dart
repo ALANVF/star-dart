@@ -1,11 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:star/util.dart';
 import 'package:star/text/text.dart';
 import 'ident.dart';
 import 'type.dart';
-import 'expr.dart';
-import 'stmt.dart';
 import 'decl.dart';
 import 'typevar.dart';
 

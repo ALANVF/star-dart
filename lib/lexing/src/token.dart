@@ -320,6 +320,7 @@ sealed class Token {
 	Span? get rbrace => k == K.rbrace ? span : null;
 
 	Span? get wildcard => k == K.wildcard ? span : null;
+	Span? get this_ => k == K.this_ ? span : null;
 }
 
 final class TToken extends Token { TToken(super.k, super.span); }

@@ -1,9 +1,7 @@
-import 'package:star/util.dart';
 import 'package:star/text/text.dart';
 import 'delims.dart';
 import 'ident.dart';
 import 'type.dart';
-import 'expr.dart';
 import 'stmt.dart';
 import 'decl.dart';
 import 'typevar.dart';

@@ -45,6 +45,7 @@ module A of B, C.D is friend Foo is sealed is native `abc` {
 			}
 			break
 			next `a`
+			return 1
 		}
 	}
 

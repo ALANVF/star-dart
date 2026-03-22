@@ -1,5 +1,3 @@
-import 'package:star/text/text.dart';
-
 abstract class Assignable {}
 enum InfixOp<T> {
 	eq, ne, gt, ge, lt, le,

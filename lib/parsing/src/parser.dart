@@ -600,7 +600,7 @@ Result<Alias> parseAliasDecl(Typevars typevars, Span _1, Tokens tokens) {
 
 					switch(rest) {
 						case [T(k: K.eq)]: return EndOfInput(tokens);
-						case [T(eq: var _2?), ...var rest2]: return switch(parseType(rest2)) {
+						case [T(k: K.eq), ...var rest2]: return switch(parseType(rest2)) {
 							Success(s: (var type, var rest3)) => Success(
 								Alias(_1, attrs, AliasKind.direct(type),
 									typevars: typevars,
@@ -2149,16 +2149,349 @@ Result<Stmt> parseLoopRange(Span _1, Expr lvar, (Span, LoopStart) start, Tokens 
 
 // ...
 
+Result<Expr> parseBasicExpr(Tokens tokens) => switch(tokens) {
+	[T(asSoftName: TName(n: (var _1, var name))), ...var rest] => Success(Expr.name(Ident(name, _1)), rest),
+	[TLitsym(n: (var _1, var sym)), ...var rest] => Success(Expr.litsym(Ident(sym, _1)), rest),
+	[TInt(span: var _1, :var i), ...var rest] => Success(Expr.int(_1, i), rest),
+	[THex(span: var _1, :var h), ...var rest] => Success(Expr.int(_1, h), rest),
+	[TDec(span: var _1, :var d), ...var rest] => Success(Expr.dec(_1, d), rest),
+	[TStr(span: var _1, :var segs), ...var rest] => switch(parseStrSegs(segs)) {
+		Success(made: var parts) => Success(Expr.str(_1, parts), rest),
+		var err => err.cast()
+	},
+	[TChar(span: var _1, :var c), ...var rest] => Success(Expr.char(_1, c), rest),
+	[TBool(span: var _1, :var b), ...var rest] => Success(Expr.bool(_1, b), rest),
+	[T(this_: var _1?), ...var rest] => Success(Expr.this_kw(_1), rest),
+	[TAnonArg(span: var _1, :var depth, :var nth), ...var rest] => Success(Expr.anonArg(_1, depth, nth), rest),
+	[T(k: K.typename || K.wildcard), ...var rest] => switch(parseType(tokens)) {
+		Success(s: (var type, var rest2)) => Success(Expr.type(type), rest2),
+		Failure f => switch(tokens[0]) {
+			T(wildcard: var _1?) => Success(Expr.wildcard(_1), rest),
+			_ => f.cast()
+		},
+		var err => err.cast()
+	},
+	[T(hashLBracket: var begin?), T(hashLBracket: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
+	[T(hashLBracket: var begin?), ...var rest] => switch(parseArrayContents(rest)) {
+		Success(s: ((var exprs, var end), var rest2)) => Success(Expr.array(begin, exprs, end), rest2),
+		var err => err.cast()
+	},
+	[T(hashLParen: var begin?), T(hashLParen: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
+	[T(hashLParen: var begin?), ...var rest] => switch(parseDictContents(rest)) {
+		Success(s: ((var pairs, var end), var rest2)) => Success(Expr.dict(begin, pairs, end), rest2),
+		var err => err.cast()
+	},
+	[T(hashLBrace: var begin?), T(hashLBrace: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
+	[T(hashLBrace: var begin?), ...var rest] => switch(parseTupleContents(rest)) {
+		Success(s: ((var exprs, var end), var rest2)) => Success(Expr.tuple(begin, exprs, end), rest2),
+		var err => err.cast()
+	},
+	[T(lparen: var begin?), ...var rest] => switch(parseParenContents(rest)) {
+		Success(s: ((var exprs, var end), var rest2)) => Success(Expr.paren(begin, exprs, end), rest2),
+		var err => err.cast()
+	},
+	[T(lbracket: var begin?), ...var rest] => switch(parseFullExpr(rest)) {
+		Success(s: (EType(:var type), [T(lsep: _?), ...var rest2] || var rest2)) => switch(finishTypeMsg(rest2)) {
+			Success(s: ((var msg, var end), var rest3)) => Success(Expr.typeMsg(type, begin, msg, end), rest3),
+			var err => err.fatalIfFailed().cast()
+		},
+		Success(s: (var expr, [T(lsep: _?), ...var rest2] || var rest2)) => switch(finishExprMsg(rest2)) {
+			Success(s: ((var msg, var end), var rest3)) => Success(Expr.exprMsg(expr, begin, msg, end), rest3),
+			var err => err.fatalIfFailed().cast()
+		},
+		var err => err.fatalIfFailed().cast()
+	},
+	[T(lbrace: var begin?), T(barBar: _?), ...var rest] ||
+	[T(lbrace: var begin?), T(bar: _?), T(bar: _?), ...var rest] => finishFunc(begin, [], rest),
+	[T(lbrace: var begin?), T(bar: _?), ...var rest] => finishFuncArgs(begin, rest),
+	[T(lbrace: var _?), ...] => switch(parseBlock(tokens)) {
+		Success(s: (var block, var rest)) => Success(Expr.block(block), rest),
+		var err => err.fatalIfFailed().cast()
+	},
+	[T(my: var _1?), ...var rest] => switch(rest) {
+		[T(asSoftName: TName(n: (var _2, var name))), ...var rest] => (){
+			Type? type; switch(parseTypeAnno(rest)) {
+				case Success(s: (var t, var rest2)):
+					rest = rest2;
+					type = t;
+				case Failure():
+					type = null;
+				case var err: return err.cast<Expr>();
+			}
+
+			Expr? expr; if(rest case [T(eq: _?), ...var rest2]) {
+				switch(parseFullExpr(rest2)) {
+					case Success(s: (var e, var rest3)):
+						rest = rest3;
+						expr = e;
+					case var err: return err;
+				}
+			} else {
+				expr = null;
+			}
+
+			return Success(Expr.varDecl(_1, Ident(name, _2), type, expr), rest);
+		}(),
+		_ => Fatal(tokens, null)
+	},
+	_ => Failure(tokens, null)
+};
+
+Result<(List<Expr> exprs, Span end)> parseArrayContents(Tokens tokens) {
+	final exprs = <Expr>[];
+	var rest = tokens;
+	
+	while(true) switch(parseFullExpr(rest)) {
+		case Success(s: (var e, var rest2)):
+			exprs.add(e);
+
+			switch(rest2) {
+				case [T(rbracket: var end?), ...var rest3]: return Success((exprs, end), rest3);
+				case [] || [T(isAnySep: true)]: return EndOfInput(tokens);
+				case [T(isAnySep: true), ...var rest3]: rest = rest3;
+				default: return Fatal(tokens, rest2);
+			}
+
+		case var err: return err.cast();
+	}
+}
+
+Result<(List<(Expr, Expr)> pairs, Span end)> parseDictContents(Tokens tokens) {
+	final pairs = <(Expr, Expr)>[];
+	var rest = tokens;
+	
+	while(true) switch(parseFullExpr(rest)) {
+		case Success(s: (var k, [T(eqGt: _?), ...var rest2])):
+			switch(parseFullExpr(rest2)) {
+				case Success(s: (var v, var rest3)):
+					pairs.add((k, v));
+
+					switch(rest3) {
+						case [T(rbracket: var end?), ...var rest4]: return Success((pairs, end), rest4);
+						case [] || [T(isAnySep: true)]: return EndOfInput(tokens);
+						case [T(isAnySep: true), ...var rest4]: rest = rest4;
+						default: return Fatal(tokens, rest3);
+					}
+				
+				case var err: return err.cast();
+			}
+
+		case Success(s: (_, var rest2)): return Fatal(tokens, rest2);
+		case var err: return err.cast();
+	}
+}
+
+Result<(List<Expr> exprs, Span end)> parseTupleContents(Tokens tokens) {
+	final exprs = <Expr>[];
+	var rest = tokens;
+	
+	while(true) switch(parseFullExpr(rest)) {
+		case Success(s: (var e, var rest2)):
+			exprs.add(e);
+
+			switch(rest2) {
+				case [T(rbrace: var end?), ...var rest3]: return Success((exprs, end), rest3);
+				case [] || [T(isAnySep: true)]: return EndOfInput(tokens);
+				case [T(isAnySep: true), ...var rest3]: rest = rest3;
+				default: return Fatal(tokens, rest2);
+			}
+
+		case var err: return err.cast();
+	}
+}
+
+Result<(List<Expr> exprs, Span end)> parseParenContents(Tokens tokens) {
+	final exprs = <Expr>[];
+	var rest = tokens;
+
+	if(!removeNewlines(tokens)) {
+		throw EndOfInput(tokens);
+	}
+
+	InfixOp? leadingOp = switch(tokens.first.k) {
+		K.andAnd => InfixOp.and,
+		K.barBar => InfixOp.or,
+		K.caretCaret => InfixOp.xor,
+		K.bangBang => InfixOp.nor,
+		_ => null
+	};
+	if(leadingOp != null) [_, ...rest] = rest;
+
+	while(true) switch(parseFullExpr(rest)) {
+		case Success(s: (var e, var rest2)):
+			exprs.add(e);
+
+			switch(rest2.firstOrNull) {
+				case T(rparen: var end?):
+					[_, ...rest2] = rest2;
+
+					if(leadingOp != null) {
+						var e0 = exprs[0];
+						if(!(e0 is EInfix && e0.op == leadingOp)) {
+							return Fatal(tokens, null);
+						}
+					}
+
+					return Success((exprs, end), rest2);
+				
+				case T(isAnyComma: true):
+					if(rest2.length == 1) return EndOfInput(tokens);
+					else [_, ...rest] = rest2;
+				
+				case null: return EndOfInput(tokens);
+				default: return Fatal(tokens, rest2);
+			}
+		
+		case var err: return err.cast();
+	}
+}
+
+bool removeNewlines(Tokens tokens) {
+	var i = 0;
+	while(i < tokens.length) switch(tokens.sublist(i)) {
+		case [T(k: K.lparen || K.hashLParen), ...]:
+			i = skipParens(tokens, i + 1);
+			if(tokens[i].k == K.lsep) {
+				tokens.removeAt(i);
+			}
+		case [T(k: K.lbracket || K.hashLBracket), ...]: i = skipBrackets(tokens, i + 1);
+		case [T(k: K.lbrace || K.hashLBrace), ...]: i = skipBraces(tokens, i + 1);
+		case [T(k: K.rparen), ...]: return true;
+		case [_, T(k: K.lsep), T(k: K.cascade), ...]: i += 3;
+		case [_, T(k: K.lsep), ...]:
+			tokens.removeAt(i + 1);
+			i += 1;
+		case [_, ...]: i += 1;
+		case []: return false;
+	}
+
+	throw "Error!";
+}
+
+int skipParens(Tokens tokens, int i) {
+	while(i < tokens.length) switch(tokens.sublist(i)) {
+		case [T(k: K.lparen || K.hashLParen), ...]: i = skipParens(tokens, i + 1);
+		case [T(k: K.lbracket || K.hashLBracket), ...]: i = skipBrackets(tokens, i + 1);
+		case [T(k: K.lbrace || K.hashLBrace), ...]: i = skipBraces(tokens, i + 1);
+		case [T(k: K.rparen), ...]: return i + 1;
+		case [_, T(k: K.lsep), T(k: K.cascade), ...]: i += 3;
+		case [_, T(k: K.lsep), ...]:
+			tokens.removeAt(i + 1);
+			i += 1;
+		case [_, ...]: i += 1;
+		case []: throw "Error!";
+	}
+
+	return i;
+}
+
+int skipBrackets(Tokens tokens, int i) {
+	while(i < tokens.length) switch(tokens.sublist(i)) {
+		case [T(k: K.lparen || K.hashLParen), ...]: i = skipParens(tokens, i + 1);
+		case [T(k: K.lbracket || K.hashLBracket), ...]: i = skipBrackets(tokens, i + 1);
+		case [T(k: K.lbrace || K.hashLBrace), ...]: i = skipBraces(tokens, i + 1);
+		case [T(k: K.rbracket), ...]: return i + 1;
+		case [_, T(k: K.lsep), T(k: K.cascade), ...]: i += 3;
+		case [_, T(k: K.lsep), ...]:
+			tokens.removeAt(i + 1);
+			i += 1;
+		case [_, ...]: i += 1;
+		case []: throw "Error!";
+	}
+
+	return i;
+}
+
+int skipBraces(Tokens tokens, int i) {
+	while(i < tokens.length) switch(tokens.sublist(i)) {
+		case [T(k: K.lparen || K.hashLParen), ...]: i = skipParens(tokens, i + 1);
+		case [T(k: K.lbracket || K.hashLBracket), ...]: i = skipBrackets(tokens, i + 1);
+		case [T(k: K.lbrace || K.hashLBrace), ...]: i = skipBraces(tokens, i + 1);
+		case [T(k: K.rbrace), ...]: return i + 1;
+		case [_, T(k: K.lsep), T(k: K.cascade), ...]: i += 3;
+		case [_, T(k: K.lsep), ...]:
+			tokens.removeAt(i + 1);
+			i += 1;
+		case [_, ...]: i += 1;
+		case []: throw "Error!";
+	}
+
+	return i;
+}
+
+
 Result<List<StrPart>> parseStrSegs(List<StrSegment> segs) => throw "";
 
-// ...
+Result<Expr> parseExpr(Tokens tokens) => parseBasicExpr(tokens);
 
-Expr reparseExpr(Expr expr) => throw "";
-
-Result<Expr> parseExpr(Tokens tokens) => throw "";
-
-Result<Expr> parseBasicExpr(Tokens tokens) => throw "";
-
-Result<Expr> parseFullExpr(Tokens tokens) => throw "";
+Result<Expr> parseFullExpr(Tokens tokens) => parseExpr(tokens);
 
 Result<(Message<Type> msg, Span end)> finishTypeMsg(Tokens tokens) => throw "";
+Result<(Message<Expr> msg, Span end)> finishExprMsg(Tokens tokens) => throw "";
+
+Result<Expr> finishFuncArgs(Span begin, Tokens tokens) {
+	final params = <(Ident name, Type? type)>[];
+	var rest = tokens;
+
+	while(true) {
+		if(rest case [T(asSoftName: TName(n: (var _1, var name))), ...var rest2]) {
+			if(rest2 case [T(lparen: _?), ...]) {
+				switch(parseTypeAnno(rest2)) {
+					case Success(s: (var type, var rest3)):
+						rest = rest3;
+						params.add((Ident(name, _1), type));
+					case var err:
+						return err.fatalIfFailed().cast();
+				}
+			} else {
+				rest = rest2;
+				params.add((Ident(name, _1), null));
+			}
+		} else {
+			return Fatal(tokens, rest);
+		}
+
+		if(rest.firstOrNull?.k == K.bar) {
+			[_, ...rest] = rest;
+			break;
+		} else if(rest.firstOrNull?.k == K.comma) {
+			[_, ...rest] = rest;
+		} else {
+			return Fatal(tokens, rest);
+		}
+	}
+
+	return finishFunc(begin, params, rest);
+}
+Result<Expr> finishFunc(Span begin, List<(Ident name, Type? type)> params, Tokens tokens) => switch(parseTypeAnno(tokens)) {
+	Success(s: (var ret, [T(rbrace: var end?), ...var rest])) => Success(Expr.func(begin, params, ret, [], end), rest),
+	Success(s: (var ret, [T(lsep: _?), ...var rest] || var rest)) => finishFuncBody(begin, params, ret, rest),
+	Failure() => finishFuncBody(begin, params, null, switch(tokens) {
+		[T(lsep: _?), ...var rest] => rest,
+		_ => tokens
+	}),
+	var err => err.cast()
+};
+
+Result<Expr> finishFuncBody(Span begin, List<(Ident name, Type? type)> params, Type? ret, Tokens tokens) {
+	final stmts = <Stmt>[];
+	var rest = tokens;
+
+	while(true) switch(parseStmt(rest)) {
+		case Success(s: (var stmt, var rest2)):
+			stmts.add(stmt);
+			
+			switch(rest2) {
+				case [T(rbrace: var end?), ...var rest3]: return Success(Expr.func(begin, params, ret, stmts, end), rest3);
+				case [] || [T(isAnySep: true)]: return EndOfInput(tokens);
+				case [T(isAnySep: true), ...var rest3]: rest = rest3;
+				default: return Fatal(tokens, rest2);
+			}
+		
+		case var err: return err.fatalIfBad(rest).cast();
+	}
+}
+
+/* REPARSE */
+
+Expr reparseExpr(Expr expr) => throw "";

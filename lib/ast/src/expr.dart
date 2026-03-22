@@ -9,6 +9,7 @@ import 'stmt.dart';
 import 'ops.dart';
 import 'message.dart';
 import 'cascade.dart';
+import 'type.dart';
 
 part 'expr.freezed.dart';
 
@@ -27,7 +28,7 @@ sealed class Expr with _$Expr { Expr._();
 	factory Expr.str(Span span, List<StrPart> parts) = EStr;
 	factory Expr.bool(Span span, bool value) = EBool;
 	factory Expr.array(Span begin, List<Expr> array, Span end) = EArray;
-	factory Expr.hash(Span begin, List<(Expr, Expr)> hash, Span end) = EHash;
+	factory Expr.dict(Span begin, List<(Expr, Expr)> dict, Span end) = EHash;
 	factory Expr.tuple(Span begin, List<Expr> tuple, Span end) = ETuple;
 	factory Expr.this_kw(Span span) = EThis;
 	factory Expr.wildcard(Span span) = EWildcard;
@@ -62,5 +63,8 @@ sealed class Expr with _$Expr { Expr._();
 	factory Expr.type(Type type) = EType;
 
 
-	Span get mainSpan => throw "todo";
+	Span get mainSpan => switch(this) {
+		EInt(:var span) => span,
+		_ => throw "todo"
+	};
 }
