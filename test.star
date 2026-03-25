@@ -45,7 +45,22 @@ module A of B, C.D is friend Foo is sealed is native `abc` {
 			}
 			break
 			next `a`
-			return 1
+			a = 3 + 5 %% 2 ?= true || foo?
+			a -> b = c -> [foo]
+			a.b
+			-> c = 1 + 2
+			-> [foo: bar]
+			--> x++
+			a[b]
+			a[b: c]
+			a[b: c d: e]
+			A[B]
+			A[B c]
+			a[B]
+			a[B c]
+			1 + 2 * 3
+			(1 + 2) * 3
+			return !1.foo?
 		}
 	}
 

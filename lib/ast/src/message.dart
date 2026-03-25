@@ -5,6 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:star/text/text.dart';
 import 'ident.dart';
 import 'expr.dart';
+import 'type.dart';
 
 part 'message.freezed.dart';
 

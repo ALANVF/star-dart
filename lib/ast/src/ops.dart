@@ -1,6 +1,7 @@
 abstract class Assignable {}
 enum InfixOp<T> {
 	eq, ne, gt, ge, lt, le,
+	assign,
 	plus<Assignable>(),
 	minus<Assignable>(),
 	times<Assignable>(),

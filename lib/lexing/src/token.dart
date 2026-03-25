@@ -197,6 +197,28 @@ sealed class Token {
 		_ => this
 	};
 
+	bool get isAssignableOp => switch(k)
+		{  K.eq
+		|| K.plusEq
+		|| K.minusEq
+		|| K.starEq
+		|| K.starStarEq
+		|| K.divEq
+		|| K.divDivEq
+		|| K.modEq
+		|| K.modModEq
+		|| K.andEq
+		|| K.andAndEq
+		|| K.barEq
+		|| K.barBarEq
+		|| K.caretEq
+		|| K.caretCaretEq
+		|| K.bangBangEq
+		|| K.ltLtEq
+		|| K.gtGtEq => true,
+		_ => false
+	};
+
 	bool get isAnySep => k == K.lsep || k == K.csep || k == K.comma;
 	bool get isAnyComma => k == K.csep || k == K.comma;
 

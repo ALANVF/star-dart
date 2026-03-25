@@ -2209,7 +2209,8 @@ Result<Expr> parseBasicExpr(Tokens tokens) => switch(tokens) {
 		var err => err.fatalIfFailed().cast()
 	},
 	[T(my: var _1?), ...var rest] => switch(rest) {
-		[T(asSoftName: TName(n: (var _2, var name))), ...var rest] => (){
+		[T(asSoftName: TName(n: (var _2, var name))), ...var rest_] => (){
+			var rest = rest_;
 			Type? type; switch(parseTypeAnno(rest)) {
 				case Success(s: (var t, var rest2)):
 					rest = rest2;
@@ -2420,14 +2421,724 @@ int skipBraces(Tokens tokens, int i) {
 }
 
 
-Result<List<StrPart>> parseStrSegs(List<StrSegment> segs) => throw "";
+Result<List<StrPart>> parseStrSegs(List<StrSegment> segs) {
+	final parts = <StrPart>[];
+	final buf = StringBuffer("");
 
-Result<Expr> parseExpr(Tokens tokens) => parseBasicExpr(tokens);
+	for(final seg in segs) switch(seg) {
+		case SStr(:var str): buf.write(str);
+		case SChar(:var char): buf.writeCharCode(char);
+		case SCode(:var tokens): switch(parseFullExpr(tokens)) {
+			case Success(s: (var expr, [])):
+				if(buf.isNotEmpty) {
+					parts.add(StrPart.left(buf.toString()));
+					buf.clear();
+				}
+				parts.add(StrPart.right(expr));
+			case Success(:var rest): return Fatal(tokens, rest);
+			case var err: return err.cast();
+		}
+	}
 
-Result<Expr> parseFullExpr(Tokens tokens) => parseExpr(tokens);
+	return Success(parts, []);
+}
 
-Result<(Message<Type> msg, Span end)> finishTypeMsg(Tokens tokens) => throw "";
-Result<(Message<Expr> msg, Span end)> finishExprMsg(Tokens tokens) => throw "";
+/* Highest ---> Lowest
+ *  1:  a.b, a[b], a++, a--, a?
+ *  2:  ++a, --a, -a, ~a, !a
+ *  3:  a -> [b], a -> [b] = c, a -> b = c, a -> {...}   (Single line only)
+ *  4:  #a b
+ *  5:  a ** b
+ *  6:  a * b, a / b, a // b, a % b
+ *  7:  a + b, a - b
+ *  8:  a & b, a | b, a ^ b, a >> b, a << b
+ *  9:  a %% b
+ * 10:  a ?= b, a != b, a > b, a >= b, a < b, a <= b
+ * 11:  a && b, a || b, a ^^ b, a !! b
+ * 12:  a = b, a += b, a -= b, a *= b, a **= b, a /= b, a //= b, a %= b, a %%= b, a &= b, a |= b, a ^= b, a >>= b, a <<= b, a &&= b, a ||= b, a ^^= b, a !!= b
+ * 13:  ...a
+*/
+
+Result<Expr> parseExpr(Tokens tokens) => parseExpr13(tokens);
+
+Result<(List<Label> labels, Span end)> parseMultiMsgLabels(Tokens tokens) {
+	var rest = tokens;
+	Label first;
+	switch(tokens) {
+		case [TLabel(:var name, :var span), T(k: K.lsep), ...var rest2] || [TLabel(:var name, :var span), ...var rest2]:
+			switch(parseFullExpr(rest2)) {
+				case Success(s: (var expr, var rest3)):
+					rest = rest3;
+					first = Label.named(Ident(name, span), expr);
+				case var err: return err.cast();
+			}
+		case [TPunned(:var name, :var span), ...var rest2]:
+			rest = rest2;
+			first = Label.punned(Ident(name, span));
+		default: return Fatal(tokens, null);
+	};
+	final labels = [first];
+
+	while(true) switch(rest) {
+		case [T(rbracket: var end?), ...var rest2]: return Success((labels, end), rest2);
+		case [TLabel(n: (var _1, var label)), ...var rest2] || [T(isAnySep: true), TLabel(n: (var _1, var label)), ...var rest2]:
+			switch(parseFullExpr(rest2)) {
+				case Success(s: (var expr, var rest3)):
+					rest = rest3;
+					labels.add(Label.named(Ident(label, _1), expr));
+				case var err: return err.cast();
+			}
+		case [TPunned(n: (var _1, var punned)), ...var rest2] || [T(isAnySep: true), TPunned(n: (var _1, var punned)), ...var rest2]:
+			rest = rest2;
+			labels.add(Label.punned(Ident(punned, _1)));
+		case [T(isAnyComma: true), ...var rest2]:
+			switch(parseFullExpr(rest2)) {
+				case Success(s: (var expr, var rest3)):
+					rest = rest3;
+					labels.add(Label.anon(expr));
+				case var err: return err.cast();
+			}
+		default: return Fatal(tokens, rest);
+	}
+}
+
+Result<(Message<Expr> msg, Span end)> finishExprMsg(Tokens tokens) => switch(tokens) {
+	[T(k: K.typename || K.wildcard), ...] => switch(parseType(tokens)) {
+		Success(s: (var type, [T(k: K.lsep), ...var rest] || var rest)) => switch(rest) {
+			[T(k: K.label || K.punned), ...] => switch(parseMultiMsgLabels(rest)) {
+				Success(s: ((var labels, var end), var rest2)) => Success((Message<Expr>.multi(labels, category: type), end), rest2),
+				var err => err.cast()
+			},
+			[T(asAnyName: TName(n: (var _1, var name))), ...var rest2] => switch(rest2) {
+				[T(rbracket: var end?), ...var rest3] => Success((Message<Expr>.single(Ident(name, _1), category: type), end), rest3),
+				_ => Fatal(tokens, rest2)
+			},
+			[T(k: K.typename), ...] => switch(parseType(rest)) {
+				Success(s: (var type2, [T(rbracket: var end?), ...var rest2])) => Success((Message.cast(type2, category: type), end), rest2),
+				Success(rest: var rest2) => Fatal(tokens, rest2),
+				var err => err.cast()
+			},
+			[T(rbracket: var end?), ...var rest2] => Success((Message.cast(type, category: null), end), rest2),
+			_ => Fatal(tokens, null)
+		},
+		var err => err.cast()
+	},
+	[T(k: K.label || K.punned), ...] => switch(parseMultiMsgLabels(tokens)) {
+		Success(s: ((var labels, var end), var rest)) => Success((Message<Expr>.multi(labels, category: null), end), rest),
+		var err => err.cast()
+	},
+	[T(asAnyName: TName(n: (var _1, var name))), ...var rest] => switch(rest) {
+		[T(rbracket: var end?), ...var rest2] => Success((Message<Expr>.single(Ident(name, _1), category: null), end), rest2),
+		_ => Fatal(tokens, rest)
+	},
+	_ => Fatal(tokens, null)
+};
+
+Result<(Message<Type> msg, Span end)> finishTypeMsg(Tokens tokens) => switch(finishExprMsg(tokens)) {
+	Success(made: (MCast(), _)) => Fatal(tokens, null),
+	// ehh kinda ugly, would like to do this more efficiently
+	Success(made: (MSingle(:var name, :var category), var end), :var rest) => Success((Message<Type>.single(name, category: category), end), rest),
+	Success(made: (MMulti(:var labels, :var category), var end), :var rest) => Success((Message<Type>.multi(labels, category: category), end), rest),
+	var res => res.cast()
+};
+
+Result<Expr> parseExpr1(Tokens tokens) {
+	final ({Expr expr, Tokens rest}) result;
+	switch(parseBasicExpr(tokens)) {
+		case Success(s: (var e && EType(:var type), var rest)): switch(rest) {
+			case [T(k: K.dot), TName(:var span, :var name), ...var rest2]:
+				result = (expr: Expr.typeMember(type, Ident(name, span)), rest: rest2);
+			
+			case [T(lbracket: var begin?), ...var rest2]: switch(finishTypeMsg(rest2)) {
+				case Success(s: ((var msg, var end), var rest3)):
+					result = (expr: Expr.typeMsg(type, begin, msg, end), rest: rest3);
+				case var err: return err.fatalIfBad(tokens).cast();
+			}
+
+			case [T(k: K.minus), T(k: K.int_ || K.hex || K.dec), ...]: switch(parseExpr2(rest)) {
+				case Success(s: (var expr, var rest2)):
+					result = (expr: Expr.literalCtor(type, expr), rest: rest2);
+				case var err: return err.fatalIfBad(tokens).cast();
+			}
+
+			case [T(k: K.int_ || K.hex || K.dec
+					|| K.char
+					|| K.bool_
+					|| K.hashLBracket || K.hashLParen || K.hashLBrace
+					// TEMP
+					|| K.anonArg
+					), ...]
+				|| [T(k: K.lbrace), T(k: K.bar || K.barBar), ...]: switch(parseBasicExpr(rest)) {
+					case Success(s: (var expr, var rest2)):
+						result = (expr: Expr.literalCtor(type, expr), rest: rest2);
+					case var err: return err.fatalIfBad(tokens).cast();
+				}
+			
+			default:
+				result = (expr: e, rest: rest);
+		}
+
+		case Success(s: (var e, var rest)):
+			result = (expr: e, rest: rest);
+		
+		case var err: return err;
+	}
+	var (:expr, :rest) = result;
+
+	loop: while(true) switch(rest) {
+		case [T(k: K.dot), TName(:var span, :var name), ...var rest2]:
+			rest = rest2;
+			expr = Expr.exprMember(expr, Ident(name, span));
+		
+		case [T(lbracket: var begin?), ...var rest2]: switch(finishExprMsg(rest2)) {
+			case Success(s: ((var msg, var end), var rest3)):
+				rest = rest3;
+				expr = Expr.exprMsg(expr, begin, msg, end);
+			case var err: return err.fatalIfBad(tokens).cast();
+		}
+
+		case [T(question: var span?), ...var rest2]:
+			rest = rest2;
+			expr = Expr.suffix(expr, span, SuffixOp.truthy);
+		
+		case [T(plusPlus: var span?), ...var rest2]:
+			rest = rest2;
+			expr = Expr.suffix(expr, span, SuffixOp.incr);
+		
+		case [T(minusMinus: var span?), ...var rest2]:
+			rest = rest2;
+			expr = Expr.suffix(expr, span, SuffixOp.decr);
+		
+		default: break loop;
+	}
+
+	return Success(expr, rest);
+}
+
+Result<Expr> _parseExpr2Rest(Span span, PrefixOp op, Tokens rest) => switch(parseExpr2(rest)) {
+	Success(s: (var expr, var rest2)) => Success(Expr.prefix(span, op, expr), rest2),
+	var err => err.cast()
+};
+
+Result<Expr> parseExpr2(Tokens tokens) => switch(tokens) {
+	[T(minus: var span?), ...var rest] => _parseExpr2Rest(span, PrefixOp.neg, rest),
+	[T(plusPlus: var span?), ...var rest] => _parseExpr2Rest(span, PrefixOp.incr, rest),
+	[T(minusMinus: var span?), ...var rest] => _parseExpr2Rest(span, PrefixOp.decr, rest),
+	[T(tilde: var span?), ...var rest] => _parseExpr2Rest(span, PrefixOp.compl, rest),
+	[T(bang: var span?), ...var rest] => _parseExpr2Rest(span, PrefixOp.not, rest),
+	_ => parseExpr1(tokens)
+};
+
+Result<Expr> parseExpr3(Tokens tokens) => switch(tokens) {
+	[TTag(:var span, :var name), ...var rest] => switch(parseExpr3(rest)) {
+		Success(s: (var expr, var rest2)) => Success(Expr.tag(Ident(name, span), expr), rest2),
+		var err => err.fatalIfBad(rest).cast()
+	},
+	_ => parseExpr2(tokens)
+};
+
+InfixOp<Assignable>? getAssignableOp(K k) => switch(k) {
+	K.eq => null,
+	K.plusEq => InfixOp.plus,
+	K.minusEq => InfixOp.minus,
+	K.starEq => InfixOp.times,
+	K.starStarEq => InfixOp.pow,
+	K.divEq => InfixOp.div,
+	K.divDivEq => InfixOp.intDiv,
+	K.modEq => InfixOp.mod,
+	K.modModEq => InfixOp.isMod,
+	K.andEq => InfixOp.bitAnd,
+	K.andAndEq => InfixOp.and,
+	K.barEq => InfixOp.bitOr,
+	K.barBarEq => InfixOp.or,
+	K.caretEq => InfixOp.bitXor,
+	K.caretCaretEq => InfixOp.xor,
+	K.bangBangEq => InfixOp.nor,
+	K.ltLtEq => InfixOp.shl,
+	K.gtGtEq => InfixOp.shr,
+	_ => throw "???"
+};
+
+Result<Expr> parseExpr4(Tokens tokens) {
+	switch(parseExpr3(tokens)) {
+		case Success(made: EType(:var type), rest: [TCascade(span: var _1, depth: 1), ...var rest]):
+			final cascades = <Cascade<Type>>[];
+			switch(_parseExprTypeCascadeContents(_1, 1, false, rest)) {
+				case Success(s: (var cascade, var rest2)):
+					rest = rest2;
+					cascades.add(cascade);
+				case var err: return err.cast();
+			}
+
+			loop: while(true) switch(rest) {
+				case [TCascade(span: var _2, depth: 1), ...var rest2]:
+					switch(_parseExprTypeCascadeContents(_2, 1, false, rest2)) {
+						case Success(s: (var cascade, var rest3)):
+							rest = rest3;
+							cascades.add(cascade);
+						case var err: return err.cast();
+					}
+				default: break loop;
+			}
+
+			return Success(Expr.typeCascades(type, cascades), rest);
+		
+		case Success(made: var expr, rest: [TCascade(span: var _1, depth: 1), ...var rest]):
+			final cascades = <Cascade<Expr>>[];
+			switch(_parseExprCascadeContents(_1, 1, false, rest)) {
+				case Success(s: (var cascade, var rest2)):
+					rest = rest2;
+					cascades.add(cascade);
+				case var err: return err.cast();
+			}
+
+			loop: while(true) switch(rest) {
+				case [TCascade(span: var _2, depth: 1), ...var rest2]:
+					switch(_parseExprCascadeContents(_2, 1, false, rest2)) {
+						case Success(s: (var cascade, var rest3)):
+							rest = rest3;
+							cascades.add(cascade);
+						case var err: return err.cast();
+					}
+				default: break loop;
+			}
+
+			return Success(Expr.exprCascades(expr, cascades), rest);
+		
+		case var res: return res;
+	}
+}
+
+Result<Expr> parseExpr5(Tokens tokens) => switch(parseExpr4(tokens)) {
+	Success(s: (var left, [T(starStar: var _1?), ...var rest])) => switch (parseExpr5(rest)) {
+		Success(s: (var right, var rest2)) => Success(Expr.infix(left, _1, InfixOp.pow, right), rest2),
+		var err => err.fatalIfBad(rest)
+	},
+	var res => res
+};
+
+Result<Expr> parseExpr6(Tokens tokens) {
+	switch(parseExpr5(tokens)) {
+		case Success(s: (var left, var rest)):
+			loop: while(true) switch(rest) {
+				case [T(star: var _1?), ...var rest2]: switch(parseExpr5(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.times, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(div: var _1?), ...var rest2]: switch(parseExpr5(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.div, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(divDiv: var _1?), ...var rest2]: switch(parseExpr5(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.intDiv, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(mod: var _1?), ...var rest2]: switch(parseExpr5(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.mod, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				default: break loop;
+			}
+
+			return Success(left, rest);
+
+		case var err: return err;
+	}
+}
+
+Result<Expr> parseExpr7(Tokens tokens) {
+	switch(parseExpr6(tokens)) {
+		case Success(s: (var left, var rest)):
+			loop: while(true) switch(rest) {
+				case [T(plus: var _1?), ...var rest2]: switch(parseExpr6(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.plus, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(minus: var _1?), ...var rest2]: switch(parseExpr6(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.minus, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				default: break loop;
+			}
+
+			return Success(left, rest);
+
+		case var err: return err;
+	}
+}
+
+Result<Expr> parseExpr8(Tokens tokens) {
+	switch(parseExpr7(tokens)) {
+		case Success(s: (var left, var rest)):
+			loop: while(true) switch(rest) {
+				case [T(and: var _1?), ...var rest2]: switch(parseExpr7(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.bitAnd, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(bar: var _1?), ...var rest2]: switch(parseExpr7(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.bitOr, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(caret: var _1?), ...var rest2]: switch(parseExpr7(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.bitXor, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(ltLt: var _1?), ...var rest2]: switch(parseExpr7(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.shl, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(gtGt: var _1?), ...var rest2]: switch(parseExpr7(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.shr, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				default: break loop;
+			}
+
+			return Success(left, rest);
+
+		case var err: return err;
+	}
+}
+
+Result<Expr> parseExpr9(Tokens tokens) => switch(parseExpr8(tokens)) {
+	Success(s: (var left, [T(modMod: var _1?), ...var rest])) => switch (parseExpr9(rest)) {
+		Success(s: (var right, var rest2)) => Success(Expr.infix(left, _1, InfixOp.isMod, right), rest2),
+		var err => err.fatalIfBad(rest)
+	},
+	var res => res
+};
+
+Result<Expr> parseExpr10(Tokens tokens) {
+	switch(parseExpr9(tokens)) {
+		case Success(s: (var left, var rest)):
+			loop: while(true) switch(rest) {
+				case [T(questionEq: var _1?), ...var rest2]: switch(parseExpr9(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.eq, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(bangEq: var _1?), ...var rest2]: switch(parseExpr9(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.ne, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(gt: var _1?), ...var rest2]: switch(parseExpr9(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.gt, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(gtEq: var _1?), ...var rest2]: switch(parseExpr9(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.ge, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(lt: var _1?), ...var rest2]: switch(parseExpr9(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.lt, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(ltEq: var _1?), ...var rest2]: switch(parseExpr9(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.le, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				default: break loop;
+			}
+
+			return Success(left, rest);
+
+		case var err: return err;
+	}
+}
+
+Result<Expr> parseExpr11(Tokens tokens) {
+	switch(parseExpr10(tokens)) {
+		case Success(s: (var left, var rest)):
+			loop: while(true) switch(rest) {
+				case [T(andAnd: var _1?), ...var rest2]: switch(parseExpr10(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.and, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(barBar: var _1?), ...var rest2]: switch(parseExpr10(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.or, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(caretCaret: var _1?), ...var rest2]: switch(parseExpr10(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.xor, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				case [T(bangBang: var _1?), ...var rest2]: switch(parseExpr10(rest2)) {
+					case Success(s: (var right, var rest3)):
+						left = Expr.infix(left, _1, InfixOp.nor, right);
+						rest = rest3;
+					case var err: return err.fatalIfBad(rest);
+				}
+				default: break loop;
+			}
+
+			return Success(left, rest);
+
+		case var err: return err;
+	}
+}
+
+Result<Expr> parseExpr12(Tokens tokens) => switch(parseExpr11(tokens)) {
+	Success(s: (var left, [T(isAssignableOp: true, :var k, span: var _1), ...var rest])) => switch (parseExpr12(rest)) {
+		Success(s: (var right, var rest2)) => Success(Expr.infix(left, _1, getAssignableOp(k) ?? InfixOp.assign, right), rest2),
+		var err => err.fatalIfBad(rest)
+	},
+	var res => res
+};
+
+Result<Expr> parseExpr13(Tokens tokens) => switch(tokens) {
+	[T(dotDotDot: var _1?), ...var rest] => switch(parseExpr12(rest)) {
+		Success(s: (var expr, var rest2)) => Success(Expr.prefix(_1, PrefixOp.spread, expr), rest2),
+		var err => err
+	},
+	_ => parseExpr12(tokens)
+};
+
+Result<Cascade<Expr>> _parseExprCascadeContents(Span _1, int level, bool fullExpr, Tokens tokens) {
+	var rest = tokens;
+
+	final CascadeKind<Expr> kind;
+	switch(tokens) {
+		case [T(k: K.lbracket), ...var rest2]: switch(finishExprMsg(rest2)) {
+			case Success(s: ((var msg, _), var rest3)): switch(rest3) {
+				case [T(plusPlus: var _2?), ...var rest4]:
+					rest = rest4;
+					kind = CascadeKind.stepMessage(msg, _2, Step.incr);
+				case [T(minusMinus: var _2?), ...var rest4]:
+					rest = rest4;
+					kind = CascadeKind.stepMessage(msg, _2, Step.decr);
+				case [T(isAssignableOp: true, :var k, span: var _2), ...var rest4]: switch(fullExpr? parseExpr(rest4) : parseExpr3(rest4)) {
+					case Success(s: (var expr, var rest5)):
+						rest = rest5;
+						kind = CascadeKind.assignMessage(msg, _2, getAssignableOp(k), expr);
+					case var err: return err.cast();
+				}
+				default:
+					rest = rest3;
+					kind = CascadeKind.message(msg);
+			}
+			case var err: return err.cast();
+		}
+
+		case [T(k: K.lbrace), ...]: switch(parseBlock(tokens)) {
+			case Success(s: (var block, var rest2)):
+				rest = rest2;
+				kind = CascadeKind.block(block);
+			case var err: return err.cast();
+		}
+
+		case [T(asAnyName: TName(n: (var _2, var name))), ...var rest2]: switch(rest2) {
+			case [T(plusPlus: var _3?), ...var rest3]:
+				rest = rest3;
+				kind = CascadeKind.stepMember(Ident(name, _2), _3, Step.incr);
+			case [T(minusMinus: var _3?), ...var rest3]:
+				rest = rest3;
+				kind = CascadeKind.stepMember(Ident(name, _2), _3, Step.decr);
+			case [T(isAssignableOp: true, :var k, span: var _3), ...var rest3]: switch(fullExpr? parseExpr(rest3) : parseExpr3(rest3)) {
+				case Success(s: (var expr, var rest4)):
+					rest = rest4;
+					kind = CascadeKind.assignMember(Ident(name, _2), _3, getAssignableOp(k), expr);
+				case var err: return err.cast();
+			}
+			default: return Fatal(tokens, rest);
+		}
+		default: return Fatal(tokens, null);
+	}
+
+	final nested = <Cascade<Expr>>[];
+	final nextLevel = level + 1;
+
+	loop: while(true) switch(rest) {
+		case [TCascade(span: var _2, :var depth), ...var rest2]
+		when depth == nextLevel: switch(_parseExprCascadeContents(_2, nextLevel, fullExpr, rest2)) {
+			case Success(s: (var cascade, var rest3)):
+				rest = rest3;
+				nested.add(cascade);
+			case var err: return err.fatalIfFailed();
+		}
+
+		case [T(k: K.lsep), TCascade(span: var _2, :var depth), ...var rest2]
+		when fullExpr && depth == nextLevel: switch(_parseExprCascadeContents(_2, nextLevel, fullExpr, rest2)) {
+			case Success(s: (var cascade, var rest3)):
+				rest = rest3;
+				nested.add(cascade);
+			case var err: return err.fatalIfFailed();
+		}
+
+		default: break loop;
+	}
+
+	return Success(Cascade(kind, span: _1, depth: level, nested: nested), rest);
+}
+
+Result<Cascade<Type>> _parseExprTypeCascadeContents(Span _1, int level, bool fullExpr, Tokens tokens) {
+	var rest = tokens;
+
+	final CascadeKind<Type> kind;
+	switch(tokens) {
+		case [T(k: K.lbracket), ...var rest2]: switch(finishTypeMsg(rest2)) {
+			case Success(s: ((var msg, _), var rest3)): switch(rest3) {
+				case [T(plusPlus: var _2?), ...var rest4]:
+					rest = rest4;
+					kind = CascadeKind.stepMessage(msg, _2, Step.incr);
+				case [T(minusMinus: var _2?), ...var rest4]:
+					rest = rest4;
+					kind = CascadeKind.stepMessage(msg, _2, Step.decr);
+				case [T(isAssignableOp: true, :var k, span: var _2), ...var rest4]: switch(fullExpr? parseExpr(rest4) : parseExpr3(rest4)) {
+					case Success(s: (var expr, var rest5)):
+						rest = rest5;
+						kind = CascadeKind.assignMessage(msg, _2, getAssignableOp(k), expr);
+					case var err: return err.cast();
+				}
+				default:
+					rest = rest3;
+					kind = CascadeKind.message(msg);
+			}
+			case var err: return err.cast();
+		}
+
+		case [T(k: K.lbrace), ...]: switch(parseBlock(tokens)) {
+			case Success(s: (var block, var rest2)):
+				rest = rest2;
+				kind = CascadeKind.block(block);
+			case var err: return err.cast();
+		}
+
+		case [T(asAnyName: TName(n: (var _2, var name))), ...var rest2]: switch(rest2) {
+			case [T(plusPlus: var _3?), ...var rest3]:
+				rest = rest3;
+				kind = CascadeKind.stepMember(Ident(name, _2), _3, Step.incr);
+			case [T(minusMinus: var _3?), ...var rest3]:
+				rest = rest3;
+				kind = CascadeKind.stepMember(Ident(name, _2), _3, Step.decr);
+			case [T(isAssignableOp: true, :var k, span: var _3), ...var rest3]: switch(fullExpr? parseExpr(rest3) : parseExpr3(rest3)) {
+				case Success(s: (var expr, var rest4)):
+					rest = rest4;
+					kind = CascadeKind.assignMember(Ident(name, _2), _3, getAssignableOp(k), expr);
+				case var err: return err.cast();
+			}
+			default:
+				rest = rest2;
+				kind = CascadeKind.member(Ident(name, _2));
+		}
+		default: return Fatal(tokens, null);
+	}
+
+	final nested = <Cascade<Expr>>[];
+	final nextLevel = level + 1;
+
+	loop: while(true) switch(rest) {
+		case [TCascade(span: var _2, :var depth), ...var rest2]
+		when depth == nextLevel: switch(_parseExprCascadeContents(_2, nextLevel, fullExpr, rest2)) {
+			case Success(s: (var cascade, var rest3)):
+				rest = rest3;
+				nested.add(cascade);
+			case var err: return err.fatalIfFailed().cast();
+		}
+
+		case [T(k: K.lsep), TCascade(span: var _2, :var depth), ...var rest2]
+		when fullExpr && depth == nextLevel: switch(_parseExprCascadeContents(_2, nextLevel, fullExpr, rest2)) {
+			case Success(s: (var cascade, var rest3)):
+				rest = rest3;
+				nested.add(cascade);
+			case var err: return err.fatalIfFailed().cast();
+		}
+
+		default: break loop;
+	}
+
+	return Success(Cascade(kind, span: _1, depth: level, nested: nested), rest);
+}
+
+
+Result<Expr> parseFullExpr(Tokens tokens) {
+	switch(parseExpr(tokens)) {
+		case Success(made: EType(:var type), rest: [T(k: K.lsep), TCascade(span: var _1, depth: 1), ...var rest]):
+			final cascades = <Cascade<Type>>[];
+			switch(_parseExprTypeCascadeContents(_1, 1, true, rest)) {
+				case Success(s: (var cascade, var rest2)):
+					rest = rest2;
+					cascades.add(cascade);
+				case var err: return err.cast();
+			}
+
+			loop: while(true) switch(rest) {
+				case [T(k: K.lsep), TCascade(span: var _2, depth: 1), ...var rest2]:
+					switch(_parseExprTypeCascadeContents(_2, 1, true, rest2)) {
+						case Success(s: (var cascade, var rest3)):
+							rest = rest3;
+							cascades.add(cascade);
+						case var err: return err.cast();
+					}
+				default: break loop;
+			}
+
+			return Success(Expr.typeCascades(type, cascades), rest);
+		
+		case Success(made: var expr, rest: [T(k: K.lsep), TCascade(span: var _1, depth: 1), ...var rest]):
+			final cascades = <Cascade<Expr>>[];
+			switch(_parseExprCascadeContents(_1, 1, true, rest)) {
+				case Success(s: (var cascade, var rest2)):
+					rest = rest2;
+					cascades.add(cascade);
+				case var err: return err.cast();
+			}
+
+			loop: while(true) switch(rest) {
+				case [T(k: K.lsep), TCascade(span: var _2, depth: 1), ...var rest2]:
+					switch(_parseExprCascadeContents(_2, 1, true, rest2)) {
+						case Success(s: (var cascade, var rest3)):
+							rest = rest3;
+							cascades.add(cascade);
+						case var err: return err.cast();
+					}
+				default: break loop;
+			}
+
+			return Success(Expr.exprCascades(expr, cascades), rest);
+		
+		case var res: return res;
+	}
+}
+
 
 Result<Expr> finishFuncArgs(Span begin, Tokens tokens) {
 	final params = <(Ident name, Type? type)>[];
@@ -2494,4 +3205,4 @@ Result<Expr> finishFuncBody(Span begin, List<(Ident name, Type? type)> params, T
 
 /* REPARSE */
 
-Expr reparseExpr(Expr expr) => throw "";
+Expr reparseExpr(Expr expr) => expr;

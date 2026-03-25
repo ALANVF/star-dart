@@ -113,12 +113,15 @@ extension type const Char(int char) implements int {
 	bool isAsciiControl() => (0 <= char && char < 32) || char == 127;
 }
 
-sealed class Either<L, R> {}
-final class Left<L> extends Either<L, dynamic> {
+sealed class Either<L, R> {
+	static Either<L, R> left<L, R>(L value) => Left<L, R>(value);
+	static Either<L, R> right<L, R>(R value) => Right<L, R>(value);
+}
+final class Left<L, R> extends Either<L, R> {
 	final L v;
 	Left(this.v);
 }
-final class Right<R> extends Either<dynamic, R> {
+final class Right<L, R> extends Either<L, R> {
 	final R v;
 	Right(this.v);
 }
@@ -319,7 +322,7 @@ String _prettyPrint(dynamic value, Set<dynamic> cache, int level) {
 			final fs = _symName(sym);
 
 			if(fs case "hashCode" || "runtimeType" || "copyWith") continue;
-			if(fs case "simpleName" || "displayName") continue; // NOTE: for this project only
+			if(fs case "simpleName" || "displayName" || "mainSpan") continue; // NOTE: for this project only
 			if(fs.startsWith("_")) continue;
 			if(!field.isGetter) continue;
 

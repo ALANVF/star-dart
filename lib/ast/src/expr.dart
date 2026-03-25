@@ -64,7 +64,10 @@ sealed class Expr with _$Expr { Expr._();
 
 
 	Span get mainSpan => switch(this) {
-		EInt(:var span) => span,
+		EInt(:var span) || EDec(:var span) || EChar(:var span) || EStr(:var span) || EBool(:var span)
+		|| EThis(:var span) || EWildcard(:var span) => span,
+		EPrefix(:var span, :var right) => span.union(right.mainSpan),
+		ESuffix(:var left, :var span) => left.mainSpan.union(span),
 		_ => throw "todo"
 	};
 }
