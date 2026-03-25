@@ -9,7 +9,7 @@ part 'token.freezed.dart';
 
 typedef Tokens = List<Token>;
 
-@freezed
+@Freezed(makeCollectionsUnmodifiable: false)
 sealed class StrSegment with _$StrSegment {
 	factory StrSegment.str(String str) = SStr;
 	factory StrSegment.char(Char char) = SChar;
@@ -365,7 +365,7 @@ abstract class _TName extends Token {
 final class TName     extends _TName { TName(Span span, String name): super(K.name, span, name); }
 final class TTypename extends _TName { TTypename(Span span, String name): super(K.typename, span, name); }
 final class TLabel    extends _TName { TLabel(Span span, String name): super(K.label, span, name); }
-final class TPunned   extends _TName { TPunned(Span span, String name): super(K.name, span, name); }
+final class TPunned   extends _TName { TPunned(Span span, String name): super(K.punned, span, name); }
 final class TTag      extends _TName { TTag(Span span, String name): super(K.tag, span, name); }
 final class TLitsym   extends _TName { TLitsym(Span span, String name): super(K.litsym, span, name); }
 

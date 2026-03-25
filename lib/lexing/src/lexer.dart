@@ -632,7 +632,7 @@ final class Lexer {
 		}
 
 		while(reader.peekAlnumQ()) reader.next();
-
+		
 		return TPunned(span, reader.substring(start));
 	}
 
@@ -814,12 +814,12 @@ final class Lexer {
 					var level = 1;
 					final tokens = <Token>[];
 
-					while(level > 0) {
+					loop: while(level > 0) {
 						final made = readToken();
 
 						switch(made.k) {
 							case K.lparen || K.hashLParen: level++;
-							case K.rparen when --level == 0: break;
+							case K.rparen when --level == 0: break loop;
 							default:
 						}
 

@@ -28,7 +28,7 @@ sealed class Expr with _$Expr { Expr._();
 	factory Expr.str(Span span, List<StrPart> parts) = EStr;
 	factory Expr.bool(Span span, bool value) = EBool;
 	factory Expr.array(Span begin, List<Expr> array, Span end) = EArray;
-	factory Expr.dict(Span begin, List<(Expr, Expr)> dict, Span end) = EHash;
+	factory Expr.dict(Span begin, List<(Expr, Expr)> dict, Span end) = EDict;
 	factory Expr.tuple(Span begin, List<Expr> tuple, Span end) = ETuple;
 	factory Expr.this_kw(Span span) = EThis;
 	factory Expr.wildcard(Span span) = EWildcard;
@@ -64,10 +64,12 @@ sealed class Expr with _$Expr { Expr._();
 
 
 	Span get mainSpan => switch(this) {
+		EName(:var name) || ELitsym(:var name) => name.span,
 		EInt(:var span) || EDec(:var span) || EChar(:var span) || EStr(:var span) || EBool(:var span)
 		|| EThis(:var span) || EWildcard(:var span) => span,
+		EArray(:var begin, :var end) || EDict(:var begin, :var end) || ETuple(:var begin, :var end) => begin.union(end),
 		EPrefix(:var span, :var right) => span.union(right.mainSpan),
 		ESuffix(:var left, :var span) => left.mainSpan.union(span),
-		_ => throw "todo"
+		_ => throw this.runtimeType.toString()
 	};
 }

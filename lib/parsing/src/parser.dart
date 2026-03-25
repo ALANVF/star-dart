@@ -2201,17 +2201,17 @@ Result<Expr> parseBasicExpr(Tokens tokens) => switch(tokens) {
 		},
 		var err => err.cast()
 	},
-	[T(hashLBracket: var begin?), T(hashLBracket: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
+	[T(hashLBracket: var begin?), T(rbracket: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
 	[T(hashLBracket: var begin?), ...var rest] => switch(parseArrayContents(rest)) {
 		Success(s: ((var exprs, var end), var rest2)) => Success(Expr.array(begin, exprs, end), rest2),
 		var err => err.cast()
 	},
-	[T(hashLParen: var begin?), T(hashLParen: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
+	[T(hashLParen: var begin?), T(rparen: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
 	[T(hashLParen: var begin?), ...var rest] => switch(parseDictContents(rest)) {
 		Success(s: ((var pairs, var end), var rest2)) => Success(Expr.dict(begin, pairs, end), rest2),
 		var err => err.cast()
 	},
-	[T(hashLBrace: var begin?), T(hashLBrace: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
+	[T(hashLBrace: var begin?), T(rbrace: var end?), ...var rest] => Success(Expr.array(begin, [], end), rest),
 	[T(hashLBrace: var begin?), ...var rest] => switch(parseTupleContents(rest)) {
 		Success(s: ((var exprs, var end), var rest2)) => Success(Expr.tuple(begin, exprs, end), rest2),
 		var err => err.cast()
@@ -2379,7 +2379,7 @@ Result<(List<Expr> exprs, Span end)> parseParenContents(Tokens tokens) {
 
 bool removeNewlines(Tokens tokens) {
 	var i = 0;
-	while(i < tokens.length) switch(tokens.sublist(i)) {
+	while(i < tokens.length) switch(tokens.sublist(i,i+4)) {
 		case [T(k: K.lparen || K.hashLParen), ...]:
 			i = skipParens(tokens, i + 1);
 			if(tokens[i].k == K.lsep) {
@@ -2391,6 +2391,9 @@ bool removeNewlines(Tokens tokens) {
 		case [_, T(k: K.lsep), T(k: K.cascade), ...]: i += 3;
 		case [_, T(k: K.lsep), ...]:
 			tokens.removeAt(i + 1);
+			i += 2;
+		case [T(k: K.lsep), ...]:
+			tokens.removeAt(i);
 			i += 1;
 		case [_, ...]: i += 1;
 		case []: return false;
@@ -2400,7 +2403,7 @@ bool removeNewlines(Tokens tokens) {
 }
 
 int skipParens(Tokens tokens, int i) {
-	while(i < tokens.length) switch(tokens.sublist(i)) {
+	while(i < tokens.length) switch(tokens.sublist(i,i+4)) {
 		case [T(k: K.lparen || K.hashLParen), ...]: i = skipParens(tokens, i + 1);
 		case [T(k: K.lbracket || K.hashLBracket), ...]: i = skipBrackets(tokens, i + 1);
 		case [T(k: K.lbrace || K.hashLBrace), ...]: i = skipBraces(tokens, i + 1);
@@ -2408,6 +2411,9 @@ int skipParens(Tokens tokens, int i) {
 		case [_, T(k: K.lsep), T(k: K.cascade), ...]: i += 3;
 		case [_, T(k: K.lsep), ...]:
 			tokens.removeAt(i + 1);
+			i += 2;
+		case [T(k: K.lsep), ...]:
+			tokens.removeAt(i);
 			i += 1;
 		case [_, ...]: i += 1;
 		case []: throw "Error!";
@@ -2417,7 +2423,7 @@ int skipParens(Tokens tokens, int i) {
 }
 
 int skipBrackets(Tokens tokens, int i) {
-	while(i < tokens.length) switch(tokens.sublist(i)) {
+	while(i < tokens.length) switch(tokens.sublist(i,i+4)) {
 		case [T(k: K.lparen || K.hashLParen), ...]: i = skipParens(tokens, i + 1);
 		case [T(k: K.lbracket || K.hashLBracket), ...]: i = skipBrackets(tokens, i + 1);
 		case [T(k: K.lbrace || K.hashLBrace), ...]: i = skipBraces(tokens, i + 1);
@@ -2425,6 +2431,9 @@ int skipBrackets(Tokens tokens, int i) {
 		case [_, T(k: K.lsep), T(k: K.cascade), ...]: i += 3;
 		case [_, T(k: K.lsep), ...]:
 			tokens.removeAt(i + 1);
+			i += 2;
+		case [T(k: K.lsep), ...]:
+			tokens.removeAt(i);
 			i += 1;
 		case [_, ...]: i += 1;
 		case []: throw "Error!";
@@ -2434,7 +2443,7 @@ int skipBrackets(Tokens tokens, int i) {
 }
 
 int skipBraces(Tokens tokens, int i) {
-	while(i < tokens.length) switch(tokens.sublist(i)) {
+	while(i < tokens.length) switch(tokens.sublist(i,i+4)) {
 		case [T(k: K.lparen || K.hashLParen), ...]: i = skipParens(tokens, i + 1);
 		case [T(k: K.lbracket || K.hashLBracket), ...]: i = skipBrackets(tokens, i + 1);
 		case [T(k: K.lbrace || K.hashLBrace), ...]: i = skipBraces(tokens, i + 1);
@@ -2442,6 +2451,9 @@ int skipBraces(Tokens tokens, int i) {
 		case [_, T(k: K.lsep), T(k: K.cascade), ...]: i += 3;
 		case [_, T(k: K.lsep), ...]:
 			tokens.removeAt(i + 1);
+			i += 2;
+		case [T(k: K.lsep), ...]:
+			tokens.removeAt(i);
 			i += 1;
 		case [_, ...]: i += 1;
 		case []: throw "Error!";
@@ -3235,4 +3247,5 @@ Result<Expr> finishFuncBody(Span begin, List<(Ident name, Type? type)> params, T
 
 /* REPARSE */
 
+// TODO
 Expr reparseExpr(Expr expr) => expr;

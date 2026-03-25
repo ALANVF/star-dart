@@ -104,14 +104,14 @@ class Reader {
 
 	bool peekAlphaU() => hasNext && switch(unsafePeek()) {
 		>= Char.a && <= Char.z ||
-		>= Char.Z && <= Char.Z
+		>= Char.A && <= Char.Z
 		|| Char.UNDERSCORE => true,
 		_ => false
 	};
 
 	bool peekAlnum() => hasNext && switch(unsafePeek()) {
 		>= Char.a && <= Char.z ||
-		>= Char.Z && <= Char.Z ||
+		>= Char.A && <= Char.Z ||
 		>= Char.ZERO && <= Char.NINE
 		|| Char.UNDERSCORE => true,
 		_ => false
@@ -119,7 +119,7 @@ class Reader {
 
 	bool peekAlnumQ() => hasNext && switch(unsafePeek()) {
 		>= Char.a && <= Char.z ||
-		>= Char.Z && <= Char.Z ||
+		>= Char.A && <= Char.Z ||
 		>= Char.ZERO && <= Char.NINE
 		|| Char.UNDERSCORE
 		|| Char.SQUOTE => true,
