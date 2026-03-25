@@ -188,8 +188,38 @@ Result<Typevar> parseTypevar(Span _1, Tokens tokens) {
 			final attrs = TypevarAttrs();
 
 			loop: while(true) switch(rest) {
-				case [T(is_: var _2?), T(native: var _3?), ...var rest2]:
-					throw "nyi";
+				case [T(is_: var _2?), T(native: _?), T(lbracket: var begin?), ...var rest2]:
+					final spec = <(Ident, Expr)>[];
+					if(rest2 case [TLabel(n: (var _3, var label)), ...var rest3]) {
+						switch(parseBasicExpr(rest3)) {
+							case Success(s: (var made, var rest4)):
+								spec.add((Ident(label, _3), made));
+								rest2 = rest4;
+							case var err: return err.cast();
+						}
+					} else {
+						return Fatal(tokens, rest2);
+					}
+
+					loop: while(true) switch(rest2) {
+						case [T(rbracket: var end?), ...var rest3]:
+							attrs.isNative = Delims(Span.range(_2, begin), spec, end);
+							rest = rest3;
+							break loop;
+						
+						case [T(isAnySep: true), ...var rest3]:
+						case var rest3:
+							if(rest3 case [TLabel(n: (var _3, var label)), ...var rest4]) {
+								switch(parseBasicExpr(rest4)) {
+									case Success(s: (var made, var rest5)):
+										rest2 = rest5;
+										spec.add((Ident(label, _3), made));
+									case var err: return err.cast();
+								}
+							} else {
+								return Fatal(tokens, rest3);
+							}
+					}
 				case [T(is_: var _2?), T(flags: var _3?), ...var rest2]:
 					attrs.isFlags = Span.range(_2, _3);
 					rest = rest2;
@@ -1176,7 +1206,7 @@ Result<(List<MultiParam> params, Span end)> parseMultiSig(Tokens tokens) {
 	while(true) {
 		if(params.isNotEmpty) switch(rest) {
 			case [T(rbracket: var end?), ...var rest2]: return Success((params, end), rest2);
-			case [T(isAnySep: true), ...var rest2]: rest = rest;
+			case [T(isAnySep: true), ...var rest2]: rest = rest2;
 			case [TLabel(), ...]: ;
 			case []: return EndOfInput(tokens);
 			default: return Fatal(tokens, rest);
