@@ -471,8 +471,8 @@ Result<Use> parseUseDecl(Typevars typevars, Span _1, Tokens tokens) {
 		case Success(s: (var spec, var rest)):
 			UseFrom? from = null; switch(rest) {
 				case [TLabel(n: (var _2, "from")), TStr(span: var _3, :var segs), ...var rest2]: switch(parseStrSegs(segs)) {
-					case Success(s: ([Left(v: var path)], var rest3)):
-						rest = rest3;
+					case Success(made: [Left(v: var path)]):
+						rest = rest2;
 						from = UseFrom.file(_2, (_3, path));
 					case Success(): return Fatal(tokens, rest2); // TODO: custom error message
 					case var err: return err.fatalIfBad(tokens).cast();
@@ -506,7 +506,7 @@ Result<UseTree> parseUseTree(Tokens tokens) {
 			while(true) switch(parseType(rest)) {
 				case Success(s: (var type, var rest2)):
 					types.add(type);
-
+					
 					switch(rest2) {
 						case [T(k: K.rbracket), ...var rest3]: return Success(UTTypes(types), rest3);
 						case [] || [T(isAnySep: true)]: return EndOfInput(tokens);
@@ -520,7 +520,7 @@ Result<UseTree> parseUseTree(Tokens tokens) {
 		case [T(k: K.hashLParen), ...var rest]:
 			final pairs = <(Type, Span, UseTree)>[];
 
-			while(true) switch(parseType(rest)) {
+			while(true) switch(parseType(rest, true)) {
 				case Success(s: (var type, var rest2)): switch(rest2) {
 					case [T(eqGt: var _1?), ...var rest3]: switch(parseUseTree(rest3)) {
 						case Success(s: (var tree, var rest4)):
@@ -535,8 +535,6 @@ Result<UseTree> parseUseTree(Tokens tokens) {
 						
 						case var err: return err.cast();
 					}
-					
-					return Fatal(tokens, rest2);
 				}
 
 				case var err: return err.cast();
@@ -1906,7 +1904,7 @@ Result<Stmt> parseStmt(Tokens tokens) {
 					Success(s: (var lvar2, var rest3)) => parseLoopIn(_1, lvar, lvar2, rest3),
 					var err => err.fatalIfFailed().cast()
 				},
-				_ => parseLoopIn(_1, lvar, null, tokens)
+				_ => parseLoopIn(_1, lvar, null, rest2)
 			},
 			var err => err.fatalIfFailed().cast()
 		};
@@ -2482,6 +2480,8 @@ Result<List<StrPart>> parseStrSegs(List<StrSegment> segs) {
 		}
 	}
 
+	if(buf.isNotEmpty) parts.add(StrPart.left(buf.toString()));
+
 	return Success(parts, []);
 }
 
@@ -3020,7 +3020,9 @@ Result<Cascade<Expr>> _parseExprCascadeContents(Span _1, int level, bool fullExp
 					kind = CascadeKind.assignMember(Ident(name, _2), _3, getAssignableOp(k), expr);
 				case var err: return err.cast();
 			}
-			default: return Fatal(tokens, rest);
+			default:
+				rest = rest2;
+				kind = CascadeKind.member(Ident(name, _2));
 		}
 		default: return Fatal(tokens, null);
 	}
@@ -3229,6 +3231,11 @@ Result<Expr> finishFunc(Span begin, List<(Ident name, Type? type)> params, Token
 Result<Expr> finishFuncBody(Span begin, List<(Ident name, Type? type)> params, Type? ret, Tokens tokens) {
 	final stmts = <Stmt>[];
 	var rest = tokens;
+
+	// for empty func
+	if(rest case [T(rbrace: var end?), ...var rest2]) {
+		return Success(Expr.func(begin, params, ret, stmts, end), rest2);
+	}
 	
 	while(true) switch(parseStmt(rest)) {
 		case Success(s: (var stmt, var rest2)):

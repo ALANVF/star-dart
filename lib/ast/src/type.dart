@@ -61,9 +61,9 @@ class TypeSeg {
 
 	String get simpleName {
 		if(args == null) {
-			return "_";
+			return name.name;
 		} else {
-			return "_[" + ("..., " * (args!.of.length - 1)) + "...]";
+			return name.name+"[" + ("..., " * (args!.of.length - 1)) + "...]";
 		}
 	}
 }
