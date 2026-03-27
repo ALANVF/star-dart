@@ -3229,7 +3229,7 @@ Result<Expr> finishFunc(Span begin, List<(Ident name, Type? type)> params, Token
 Result<Expr> finishFuncBody(Span begin, List<(Ident name, Type? type)> params, Type? ret, Tokens tokens) {
 	final stmts = <Stmt>[];
 	var rest = tokens;
-
+	
 	while(true) switch(parseStmt(rest)) {
 		case Success(s: (var stmt, var rest2)):
 			stmts.add(stmt);

@@ -8,6 +8,7 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
+  fast_immutable_collections: ^11.1.0
   freezed: ^3.0.4
   freezed_annotation: ^3.0.0
   # path: ^1.8.0
