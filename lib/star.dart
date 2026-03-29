@@ -20,7 +20,7 @@ void main() {
 	switch(parser.parse(tokens)) {
 		case PModular(:var decls, errors: var errors2):
 			errors.addAll(errors2);
-			for(final decl in decls) print(prettyPrint(decl));
+			for(final decl in decls) print(/*prettyPrint*/(decl));
 
 		default:
 	}

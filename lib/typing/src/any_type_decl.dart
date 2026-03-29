@@ -1,8 +1,8 @@
 import 'package:star/ast/ast.dart' show Ident;
 import 'package:star/text/src/span.dart';
+import 'package:star/errors/errors.dart';
 
 import 'traits.dart';
-import 'errors.dart';
 import 'type.dart';
 
 abstract class AnyTypeDecl implements ITypeable, ITypeLookupDecl {

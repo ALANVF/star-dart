@@ -1,7 +1,7 @@
+import 'package:star/errors/errors.dart';
 import 'traits.dart';
 import 'any_type_decl.dart';
 import 'cache.dart';
-import 'errors.dart';
 import 'type.dart';
 import 'lookup_path.dart';
 import 'type_path.dart';

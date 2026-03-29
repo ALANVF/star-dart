@@ -1,8 +1,8 @@
 import 'package:star/text/src/span.dart';
 import 'package:star/ast/src/ident.dart';
 import 'package:star/ast/ast.dart' as ast;
+import 'package:star/errors/errors.dart';
 
-import 'errors.dart';
 import 'traits.dart';
 import 'type.dart';
 import 'expr.dart';

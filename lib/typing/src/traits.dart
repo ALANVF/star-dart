@@ -1,11 +1,11 @@
 import 'package:star/text/text.dart';
+import 'package:star/errors/errors.dart';
 
 import 'any_type_decl.dart';
 import 'type_path.dart';
 import 'type.dart';
 import 'cache.dart';
 import 'lookup_path.dart';
-import 'errors.dart';
 
 enum Search {
 	start,

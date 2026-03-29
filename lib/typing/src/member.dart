@@ -1,8 +1,8 @@
 import 'package:star/text/src/span.dart';
 import 'package:star/ast/src/ident.dart';
 import 'package:star/ast/ast.dart' as ast;
+import 'package:star/errors/errors.dart';
 
-import 'errors.dart';
 import 'traits.dart';
 import 'type.dart';
 import 'expr.dart';
@@ -13,7 +13,7 @@ class Member implements IDecl {
 	final errors = <StarError>[];
 	AnyTypeDecl decl;
 	Span span;
-	Ident ident;
+	Ident name;
 	Type? type;
 	var isStatic = false;
 	(Type?,)? hidden = null;
@@ -28,7 +28,7 @@ class Member implements IDecl {
 	Member({
 		required this.decl,
 		required this.span,
-		required this.ident,
+		required this.name,
 		required this.type
 	});
 
