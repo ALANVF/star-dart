@@ -3,6 +3,7 @@ import 'package:star/ast/src/ident.dart';
 import 'package:star/ast/src/ops.dart';
 import 'package:star/errors/errors.dart';
 import 'package:star/text/src/span.dart';
+import 'package:star/util.dart';
 
 import 'traits.dart';
 import 'any_type_decl.dart';
@@ -100,7 +101,7 @@ enum BinaryOp {
 }
 
 class BinaryOperator extends Operator {
-	var typevars = <String, List<TypeVar>>{};
+	var typevars = MultiMap<String, TypeVar>.empty();
 	BinaryOp op;
 	({Ident name, Type type}) param;
 
@@ -113,14 +114,13 @@ class BinaryOperator extends Operator {
 
 	/* implements IErrors */
 	@override
-	bool hasErrors() => super.hasErrors() || typevars.values.any((ts) => ts.any((t) => t.hasErrors()));
+	bool hasErrors() => super.hasErrors() || typevars.allValues.any((t) => t.hasErrors());
 
 	@override
 	List<StarError> allErrors() => [
 		...super.allErrors(),
-		for(final ts in typevars.values)
-			for(final t in ts)
-				...t.allErrors()
+		for(final t in typevars.allValues)
+			...t.allErrors()
 	];
 
 

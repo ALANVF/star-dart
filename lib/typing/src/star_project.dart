@@ -1,7 +1,7 @@
 import 'star_dir.dart';
 import 'star_file.dart';
 
-sealed class StarProject extends StarDir {
+class StarProject extends StarDir {
 	static StarProject? STDLIB = null;
 
 	StarFile? main;

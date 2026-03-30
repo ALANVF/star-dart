@@ -40,7 +40,7 @@ abstract class TaggedCase implements IDecl {
 	String get declName => "tagged case";
 }
 
-sealed class SingleTaggedCase extends TaggedCase {
+class SingleTaggedCase extends TaggedCase {
 	Ident name;
 
 	SingleTaggedCase({
@@ -50,12 +50,12 @@ sealed class SingleTaggedCase extends TaggedCase {
 	});
 }
 
-sealed class MultiTaggedCase extends TaggedCase {
-	MultiParams name;
+class MultiTaggedCase extends TaggedCase {
+	MultiParams params;
 
 	MultiTaggedCase({
 		required super.decl,
 		required super.span,
-		required this.name
+		required this.params
 	});
 }

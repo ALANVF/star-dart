@@ -1,5 +1,9 @@
 import 'package:star/errors/errors.dart';
+import 'package:star/util.dart';
 
+import 'category.dart';
+import 'ctx.dart';
+import 'lookup_path.dart';
 import 'traits.dart';
 import 'type.dart';
 import 'any_type_decl.dart';
@@ -9,7 +13,7 @@ import 'type_path.dart';
 
 
 abstract class TypeDecl extends AnyFullTypeDecl {
-	final typevars = <String, List<TypeVar>>{};
+	final typevars = MultiMap<String, TypeVar>.empty();
 	(Type?,)? hidden = null;
 	final friends = <Type>[];
 	final refinements = <TypeDecl>[];
@@ -22,18 +26,28 @@ abstract class TypeDecl extends AnyFullTypeDecl {
 
 	/* implements IErrors */
 
-	@override
 	bool hasErrors() =>
 		errors.isNotEmpty
-		|| typevars.values.any((ts) => ts.any((t) => t.hasErrors()));
+		|| typevars.allValues.any((t) => t.hasErrors());
 	
-	@override
 	List<StarError> allErrors() => [
 		...errors,
-		for(final ts in typevars.values)
-			for(final t in ts)
-				...t.allErrors()
+		for(final t in typevars.allValues)
+			...t.allErrors()
 	];
+
+
+	/* implements ITypeLookup */
+
+	Type makeTypePath(TypePath path) => path.toType(this);
+
+	Type? findType(LookupPath path, Search search, AnyTypeDecl? from, [int depth = 0, Cache cache = const Cache.empty()]) {
+		throw "todo";
+	}
+
+	Category? findCategory(Ctx ctx, Type cat, Type forType, AnyTypeDecl? from, [Cache cache = const Cache.empty()]) {
+		throw "todo";
+	}
 
 
 	/* implements ITypeable */

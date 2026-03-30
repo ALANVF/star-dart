@@ -7,6 +7,7 @@ import 'reporting/reporting.dart';
 import 'package:star/errors/errors.dart';
 import 'ast/ast.dart';
 import 'parsing/parsing.dart' as parser;
+import 'typing/src/cascade.dart';
 
 void main() {
 	final src = SourceFile("./test.star");

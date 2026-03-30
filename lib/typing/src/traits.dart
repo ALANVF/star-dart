@@ -6,6 +6,8 @@ import 'type_path.dart';
 import 'type.dart';
 import 'cache.dart';
 import 'lookup_path.dart';
+import 'category.dart';
+import 'ctx.dart';
 
 enum Search {
 	start,
@@ -30,15 +32,8 @@ abstract interface class ITypeLookup {
 	Type makeTypePath(TypePath path);
 
 	Type? findType(LookupPath path, Search search, AnyTypeDecl? from, [int depth = 0, Cache cache = const Cache.empty()]);
-	/*
-	function findCategory(
-		ctx: Ctx,
-		cat: Type,
-		forType: Type,
-		from: AnyTypeDecl,
-		cache: Cache = Nil
-	): Array<Category>;
-	*/
+
+	Category? findCategory(Ctx ctx, Type cat, Type forType, AnyTypeDecl? from, [Cache cache = const Cache.empty()]);
 }
 
 abstract interface class ITypeLookupDecl implements ITypeLookup, IDecl {

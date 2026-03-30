@@ -4,7 +4,7 @@ import 'type.dart';
 
 typedef LookupSeg = (Span? span, String name, List<Type> args);
 
-extension type LookupPath._(List<LookupSeg> path) {
+extension type LookupPath(List<LookupSeg> path) {
 	String get simpleName => path.map((seg) => switch(seg) {
 		(_, var name, []) => name,
 		(_, var name, var args) => (StringBuffer(name)

@@ -148,6 +148,24 @@ extension IntUtil on int {
 	}
 }
 
+extension type MultiMap<K, V>(Map<K, List<V>> map) implements Map<K, List<V>> {
+	factory MultiMap.empty() => MultiMap({});
+
+	Iterable<V> get allValues sync* {
+		for(final vl in map.values) {
+			yield* vl;
+		}
+	}
+
+	void add(K key, V value) {
+		if(map.containsKey(key)) {
+			map[key]!.add(value);
+		} else {
+			map[key] = [value];
+		}
+	}
+}
+
 extension StringUtil on String {
 	Char charAt(int index) => codeUnitAt(index).char;
 

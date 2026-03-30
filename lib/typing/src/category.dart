@@ -1,9 +1,14 @@
 
 import 'package:star/text/src/span.dart';
 import 'package:star/errors/errors.dart';
+import 'package:star/typing/src/ctx.dart';
+import 'package:star/util.dart';
 
 import 'traits.dart';
 import 'any_type_decl.dart';
+import 'any_method.dart';
+import 'operator.dart';
+import 'member.dart';
 import 'type_decl.dart';
 import 'type.dart';
 import 'typevar.dart';
@@ -11,11 +16,17 @@ import 'type_path.dart';
 import 'lookup_path.dart';
 import 'cache.dart';
 
-sealed class Category extends AnyTypeDecl {
-	final typevars = <String, List<TypeVar>>{};
+class Category extends AnyTypeDecl {
+	final typevars = MultiMap<String, TypeVar>.empty();
 	Type path;
 	Type? target;
-	// ...
+	final staticMembers = <Member>[];
+	final staticMethods = <StaticMethod>[];
+	final methods = <Method>[];
+	final inits = <Init>[];
+	final operators = <Operator>[];
+	StaticInit? staticInit = null;
+	StaticDeinit? staticDeinit = null;
 	(Type?,)? hidden = null;
 	final friends = <Type>[];
 
@@ -28,47 +39,33 @@ sealed class Category extends AnyTypeDecl {
 
 	/* implements IErrors */
 
-	@override bool hasErrors() => errors.isNotEmpty;
-	
-	@override List<StarError> allErrors() => errors;
+	bool hasErrors() =>
+		(  errors.isNotEmpty
+		|| typevars.allValues.any((t) => t.hasErrors())
+		|| staticMembers.any((m) => m.hasErrors())
+		|| staticMethods.any((m) => m.hasErrors())
+		|| methods.any((m) => m.hasErrors())
+		|| inits.any((i) => i.hasErrors())
+		|| operators.any((o) => o.hasErrors()));
 
-	/*
-	function hasErrors() {
-		return errors.length != 0
-			|| typevars.allValues().some(g -> g.hasErrors())
-			|| staticMembers.some(m -> m.hasErrors())
-			|| staticMethods.some(m -> m.hasErrors())
-			|| methods.some(m -> m.hasErrors())
-			|| inits.some(i -> i.hasErrors())
-			|| operators.some(o -> o.hasErrors());
-	}
-
-	function allErrors() {
-		var result = errors;
-		
-		for(typevar in typevars) result = result.concat(typevar.allErrors());
-		for(member in staticMembers) result = result.concat(member.allErrors());
-		for(method in staticMethods) result = result.concat(method.allErrors());
-		for(method in methods) result = result.concat(method.allErrors());
-		for(init in inits) result = result.concat(init.allErrors());
-		for(op in operators) result = result.concat(op.allErrors());
-
-		return result;
-	}
-	*/
+	List<StarError> allErrors() => [
+		...errors,
+		for(final t in typevars.allValues) ...t.allErrors(),
+		for(final m in staticMembers) ...m.allErrors(),
+		for(final m in staticMethods) ...m.allErrors(),
+		for(final m in methods) ...m.allErrors(),
+		for(final i in inits) ...i.allErrors(),
+		for(final o in operators) ...o.allErrors()
+	];
 
 
 	/* implements IDecl */
 
-	@override
 	String get declName => "category";
-
-	//'ITypeLookup.findType', 'ITypeLookup.makeTypePath', and 'ITypeable.fullName'.
 
 
 	/* implements ITypeable */
 
-	@override
 	String fullName([TypeCache cache = const TypeCache.empty()]) => switch(target) {
 		var target? => target.fullName(cache),
 		_ => switch(lookup) {
@@ -81,25 +78,9 @@ sealed class Category extends AnyTypeDecl {
 
 	/* implements ITypeLookup */
 
-	@override
-	Type makeTypePath(TypePath path) => throw "todo";
+	Type makeTypePath(TypePath path) => path.toType(this);
 
+	Type? findType(LookupPath path, Search search, AnyTypeDecl? from, [int depth = 0, Cache cache = const Cache.empty()]) => throw "todo";
 
+	Category? findCategory(Ctx ctx, Type cat, Type forType, AnyTypeDecl? from, [Cache cache = const Cache.empty()]) => throw "todo";
 }
-
-/*
-@:structInit
-class Category extends AnyTypeDecl {
-	@:optional final typevars = new MultiMap<String, TypeVar>();
-	var path: Type;
-	var type: Null<Type>;
-	final staticMembers: Array<Member> = [];
-	final staticMethods: Array<StaticMethod> = [];
-	final methods: Array<Method> = [];
-	final inits: Array<Init> = [];
-	final operators: Array<Operator> = [];
-	var staticInit: Option<StaticInit> = None;
-	var staticDeinit: Option<StaticDeinit> = None;
-	var hidden: Null<Option<Type>> = null;
-	final friends: Array<Type> = [];
-*/

@@ -3,7 +3,7 @@ import 'star_dir.dart';
 import 'star_file.dart';
 
 
-sealed class StarUnit extends StarDir {
+class StarUnit extends StarDir {
 	StarDir outer;
 	StarFile? primary;
 

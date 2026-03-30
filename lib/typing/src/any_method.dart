@@ -2,6 +2,7 @@ import 'package:star/ast/ast.dart' as ast;
 import 'package:star/ast/src/ident.dart';
 import 'package:star/errors/errors.dart';
 import 'package:star/text/src/span.dart';
+import 'package:star/util.dart';
 
 import 'traits.dart';
 import 'any_type_decl.dart';
@@ -12,6 +13,8 @@ import 'lookup_path.dart';
 import 'type_path.dart';
 import 'typevar.dart';
 import 'multi_param.dart';
+import 'category.dart';
+import 'ctx.dart';
 
 
 abstract class AnyMethod implements ITypeLookupDecl {
@@ -44,6 +47,10 @@ abstract class AnyMethod implements ITypeLookupDecl {
 
 	Type? findType(LookupPath path, Search search, AnyTypeDecl? from, [int depth = 0, Cache cache = const Cache.empty()]) {
 		return decl.findType(path, search, from, depth, cache);
+	}
+
+	Category? findCategory(Ctx ctx, Type cat, Type forType, AnyTypeDecl? from, [Cache cache = const Cache.empty()]) {
+		return decl.findCategory(ctx, cat, forType, from, cache);
 	}
 }
 
@@ -140,7 +147,7 @@ class SingleInit extends Init {
 
 
 class MultiStaticMethod extends StaticMethod {
-	var typevars = <String, List<TypeVar>>{};
+	var typevars = MultiMap<String, TypeVar>.empty();
 	MultiParams params = [];
 	late String fuzzyName;
 	var isUnordered = false;
@@ -154,7 +161,7 @@ class MultiStaticMethod extends StaticMethod {
 }
 
 class MultiMethod extends StaticMethod {
-	var typevars = <String, List<TypeVar>>{};
+	var typevars = MultiMap<String, TypeVar>.empty();
 	MultiParams params = [];
 	late String fuzzyName;
 	var isUnordered = false;
@@ -168,7 +175,7 @@ class MultiMethod extends StaticMethod {
 }
 
 class MultiInit extends Init {
-	var typevars = <String, List<TypeVar>>{};
+	var typevars = MultiMap<String, TypeVar>.empty();
 	MultiParams params = [];
 	late String fuzzyName;
 	var isUnordered = false;
@@ -185,7 +192,7 @@ class MultiInit extends Init {
 //===============================================================================//
 
 class CastMethod extends Method {
-	var typevars = <String, List<TypeVar>>{};
+	var typevars = MultiMap<String, TypeVar>.empty();
 	late Type type;
 
 	CastMethod({required super.decl, required super.span, super.ret});
@@ -199,13 +206,80 @@ class CastMethod extends Method {
 	/* implements IErrors */
 
 	@override
-	bool hasErrors() => super.hasErrors() || typevars.values.any((ts) => ts.any((t) => t.hasErrors()));
+	bool hasErrors() => super.hasErrors() || typevars.allValues.any((t) => t.hasErrors());
 
 	@override
 	List<StarError> allErrors() => [
 		...super.allErrors(),
-		for(final ts in typevars.values)
-			for(final t in ts)
-				...t.allErrors()
+		for(final t in typevars.allValues)
+			...t.allErrors()
 	];
+}
+
+
+//=====================================================================================//
+
+abstract class EmptyMethod implements IDecl {
+	final errors = <StarError>[];
+	final AnyTypeDecl decl;
+	final Span span;
+	final List<ast.Stmt> body;
+	List<TStmt>? typedBody = null;
+
+	EmptyMethod({required this.decl, required this.span, required this.body});
+
+
+	/* implements IErrors */
+
+	bool hasErrors() => errors.isNotEmpty;
+
+	List<StarError> allErrors() => errors;
+}
+
+class DefaultInit extends EmptyMethod {
+	DefaultInit({required super.decl, required super.span, required super.body});
+
+	static DefaultInit fromAST(AnyTypeDecl decl, ast.EmptyMethod ast) {
+		return DefaultInit(decl: decl, span: ast.span, body: ast.body.stmts);
+	}
+
+	/* implements IDecl */
+
+	String get declName => "default initializer";
+}
+
+class Deinit extends EmptyMethod {
+	Deinit({required super.decl, required super.span, required super.body});
+
+	static Deinit fromAST(AnyTypeDecl decl, ast.EmptyMethod ast) {
+		return Deinit(decl: decl, span: ast.span, body: ast.body.stmts);
+	}
+
+	/* implements IDecl */
+
+	String get declName => "deinitializer";
+}
+
+class StaticInit extends EmptyMethod {
+	StaticInit({required super.decl, required super.span, required super.body});
+
+	static StaticInit fromAST(AnyTypeDecl decl, ast.EmptyMethod ast) {
+		return StaticInit(decl: decl, span: ast.span, body: ast.body.stmts);
+	}
+
+	/* implements IDecl */
+
+	String get declName => "static initializer";
+}
+
+class StaticDeinit extends EmptyMethod {
+	StaticDeinit({required super.decl, required super.span, required super.body});
+
+	static StaticDeinit fromAST(AnyTypeDecl decl, ast.EmptyMethod ast) {
+		return StaticDeinit(decl: decl, span: ast.span, body: ast.body.stmts);
+	}
+
+	/* implements IDecl */
+
+	String get declName => "static deinitializer";
 }

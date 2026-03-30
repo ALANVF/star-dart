@@ -3,8 +3,9 @@ import '../../ast/ast.dart' as ast;
 
 import 'lookup_path.dart';
 import 'traits.dart';
+import 'type.dart';
 
-extension type TypePath._(ast.Type type) {
+extension type TypePath(ast.Type type) {
 	static List<LookupSeg> _mapSegs(List<ast.TypeSeg> segs, ITypeLookup lookup) => switch(segs) {
 		[] => [],
 		[ast.TypeSeg(:var span, :var name, args: null || []), ...var rest] => [(span, name.name, []), ..._mapSegs(rest, lookup)],
@@ -21,23 +22,19 @@ extension type TypePath._(ast.Type type) {
 			_mapSegs(segs, lookup) as LookupPath
 		)
 	};
-	
-	/*
-	static function toType(self: TypePath, lookup: ITypeLookup): Type {
-		return switch self {
-			case TBlank(span): {t: TBlank, span: span};
-			case TBlankParams(span, {of: params}):
-				{
-					t: TApplied({t: TBlank, span: span}, params.map(p -> toType(p, lookup))),
-					span: self.span()
-				};
-			case TSegs(_, Nil): throw "error!";
-			case TSegs(leading, segs):
-				{
-					t: TPath(leading.length(), rec(segs, lookup), lookup),
-					span: self.span()
-				};
-		};
-	}
-	*/
+
+	Type toType(ITypeLookup lookup) => switch(type) {
+		ast.Type_Blank(:var blank, args: null) => Type.blank(span: blank),
+		ast.Type_Blank(:var blank, :var args!) => Type.applied(
+			Type.blank(span: blank),
+			[for(final a in args.of) TypePath(a).toType(lookup)]
+		),
+		ast.Type_Path(segs: []) => throw "error!",
+		ast.Type_Path(:var leading, :var segs) => Type.path(
+			leading?.length ?? 0,
+			LookupPath(_mapSegs(segs, lookup)),
+			lookup,
+			span: type.span
+		)
+	};
 }
