@@ -29,6 +29,10 @@ abstract class Operator extends AnyMethod {
 
 	String get opName;
 
+	static Operator? fromAST(ITypeLookup lookup, ast.Operator o) {
+		throw "todo";
+	}
+
 
 	/* implements IDecl */
 

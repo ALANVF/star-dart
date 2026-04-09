@@ -38,3 +38,7 @@ extension type TypePath(ast.Type type) {
 		)
 	};
 }
+
+extension AstToTypePath on ast.Type {
+	TypePath get toPath => TypePath(this);
+}

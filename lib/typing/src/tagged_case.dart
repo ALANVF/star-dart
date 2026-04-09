@@ -5,7 +5,6 @@ import 'package:star/errors/errors.dart';
 
 import 'traits.dart';
 import 'type.dart';
-import 'expr.dart';
 import 'stmt.dart';
 import 'message.dart';
 import 'any_type_decl.dart';
@@ -16,8 +15,8 @@ abstract class TaggedCase implements IDecl {
 	final errors = <StarError>[];
 	AnyTypeDecl decl;
 	Span span;
-	ast.Message<ast.Type>? assoc = null;
-	List<ast.Stmt>? init = null;
+	ast.Message<ast.Type>? assoc;
+	List<ast.Stmt>? init;
 
 	Message<Type>? typedAssoc = null;
 	TStmts? typedInit = null;
@@ -25,7 +24,34 @@ abstract class TaggedCase implements IDecl {
 	TaggedCase({
 		required this.decl,
 		required this.span,
+		required this.assoc,
+		required this.init
 	});
+
+	static TaggedCase fromAST(AnyTypeDecl decl, ast.Case tc) {
+		switch(tc.kind) {
+			case ast.CTagged(tag: ast.CTSingle(:var name), :var assoc):
+				return SingleTaggedCase(
+					decl: decl,
+					span: tc.span,
+					name: name,
+					assoc: assoc,
+					init: tc.init?.of
+				);
+			
+			case ast.CTagged(tag: ast.CTMulti(:var params), :var assoc):
+				return MultiTaggedCase(
+					decl: decl,
+					span: tc.span,
+					params: [for(final p in params) MultiParam.fromUntyped(decl, p)],
+					assoc: assoc,
+					init: tc.init?.of
+				);
+			
+			default:
+				throw "error!";
+		}
+	}
 
 
 	/* implements IErrors */
@@ -46,6 +72,8 @@ class SingleTaggedCase extends TaggedCase {
 	SingleTaggedCase({
 		required super.decl,
 		required super.span,
+		required super.assoc,
+		required super.init,
 		required this.name
 	});
 }
@@ -56,6 +84,8 @@ class MultiTaggedCase extends TaggedCase {
 	MultiTaggedCase({
 		required super.decl,
 		required super.span,
+		required super.assoc,
+		required super.init,
 		required this.params
 	});
 }

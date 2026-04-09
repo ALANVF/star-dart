@@ -16,7 +16,30 @@ class ValueCase implements IDecl {
 	ast.Expr? value;
 	TExpr? typedValue = null;
 
-	ValueCase({required this.decl, required this.span, required this.name});
+	ValueCase({required this.decl, required this.span, required this.name, required this.value});
+
+	static ValueCase fromAST(AnyTypeDecl decl, ast.Case vc) {
+		if(vc.kind case ast.CScalar(:var name, :var value)) {
+			final valueCase = ValueCase(
+				decl: decl,
+				span: vc.span,
+				name: name,
+				value: value,
+			);
+
+			if(vc.init case var init?) {
+				valueCase.errors.add(StarError.noValueCaseInit(
+					name.name,
+					Span.range(vc.span, name.span),
+					Span.range(init.begin, init.end)
+				));
+			}
+
+			return valueCase;
+		} else {
+			throw "error!";
+		}
+	}
 
 
 	/* implements IErrors */
@@ -30,50 +53,3 @@ class ValueCase implements IDecl {
 
 	String get declName => "value case";
 }
-
-/*
-class ValueCase implements IErrors {
-	final errors: Array<Error> = [];
-	var decl: AnyTypeDecl;
-	var span: Span;
-	var name: Ident;
-	var value: Null<Expr>;
-	var typedValue: Null<TExpr> = null;
-
-	static function fromAST(decl, ast: parsing.ast.decls.Case) {
-		switch ast.kind {
-			case Scalar(name, value):
-				final valueCase: ValueCase = {
-					decl: decl,
-					span: ast.span,
-					name: name,
-					value: value
-				};
-
-				ast.init._and(init => {
-					valueCase.errors.push(Type_NoValueCaseInit(
-						name.name,
-						Span.range(ast.span, name.span),
-						Span.range(init.begin, init.end)
-					));
-				});
-
-				return valueCase;
-			
-			default: throw "Error!";
-		}
-	}
-
-	function declName() {
-		return "value case";
-	}
-
-	function hasErrors() {
-		return errors.length != 0;
-	}
-
-	function allErrors() {
-		return errors;
-	}
-}
-*/

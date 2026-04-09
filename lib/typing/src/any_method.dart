@@ -64,6 +64,10 @@ abstract class StaticMethod extends AnyMethod {
 
 	StaticMethod({required super.decl, required super.span, required this.ret});
 
+	static StaticMethod? fromAST(ITypeLookup lookup, ast.Method m) {
+		throw "todo";
+	}
+
 
 	/* implements IDecl */
 
@@ -80,6 +84,10 @@ abstract class Method extends AnyMethod {
 
 	Method({required super.decl, required super.span, required this.ret});
 
+	static Method fromAST(ITypeLookup lookup, ast.Method m) {
+		throw "todo";
+	}
+
 
 	/* implements IDecl */
 
@@ -90,6 +98,10 @@ abstract class Init extends AnyMethod {
 	var isMacro = false;
 
 	Init({required super.decl, required super.span});
+
+	static Init fromAST(ITypeLookup lookup, ast.Init i) {
+		throw "todo";
+	}
 
 
 	/* implements IDecl */

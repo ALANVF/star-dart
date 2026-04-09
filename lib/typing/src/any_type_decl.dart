@@ -20,12 +20,11 @@ abstract class AnyTypeDecl implements ITypeable, ITypeLookupDecl {
 }
 
 abstract class AnyFullTypeDecl extends AnyTypeDecl {
-	List<Type> params;
+	late List<Type> params;
 
 	AnyFullTypeDecl({
 		required super.span,
 		required super.name,
-		required this.params,
 		required super.lookup,
 	});
 }

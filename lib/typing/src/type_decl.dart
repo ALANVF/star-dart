@@ -19,7 +19,7 @@ abstract class TypeDecl extends AnyFullTypeDecl {
 	final refinements = <TypeDecl>[];
 	final refinees = <TypeDecl>[];
 
-	TypeDecl({required super.span, required super.name, required super.params, required super.lookup}) {
+	TypeDecl({required super.span, required super.name, required super.lookup}) {
 		thisType = Type.thisType(this);
 	}
 

@@ -1,3 +1,5 @@
+import 'package:star/ast/ast.dart' as ast;
+
 import 'any_type_decl.dart';
 import 'cache.dart';
 import 'lookup_path.dart';
@@ -8,7 +10,15 @@ import 'alias.dart';
 class DirectAlias extends Alias {
 	late Type type;
 	
-	DirectAlias({required super.span, required super.name, required super.params, required super.lookup});
+	DirectAlias({required super.span, required super.name, required super.lookup});
+
+	static DirectAlias fromAST(ITypeLookup lookup, ast.Alias a) {
+		throw "todo";
+	}
+	
+
+	/* implements IDecl */
+	String get declName => "type alias";
 
 	
 	/* implements ITypeDecl */

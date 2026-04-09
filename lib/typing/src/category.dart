@@ -1,4 +1,4 @@
-
+import 'package:star/ast/ast.dart' as ast;
 import 'package:star/text/src/span.dart';
 import 'package:star/errors/errors.dart';
 import 'package:star/typing/src/ctx.dart';
@@ -35,6 +35,10 @@ class Category extends AnyTypeDecl {
 		required this.path,
 		required this.target
 	});
+
+	static Category fromAST(ITypeLookup lookup, ast.Category c) {
+		throw "todo";
+	}
 
 
 	/* implements IErrors */

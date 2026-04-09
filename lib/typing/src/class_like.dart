@@ -20,7 +20,7 @@ abstract class ClassLike extends Namespace {
 	final methods = <Method>[];
 	final operators = <Operator>[];
 
-	ClassLike({required super.span, required super.name, required super.params, required super.lookup});
+	ClassLike({required super.span, required super.name, required super.lookup});
 
 
 	/* implements IErrors */

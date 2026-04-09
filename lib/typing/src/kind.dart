@@ -1,19 +1,13 @@
-import 'package:star/errors/errors.dart';
-import 'package:star/util.dart';
+import 'package:star/ast/ast.dart' as ast;
 
-import 'category.dart';
-import 'ctx.dart';
 import 'lookup_path.dart';
 import 'traits.dart';
 import 'type.dart';
-import 'any_type_decl.dart';
-import 'typevar.dart';
-import 'cache.dart';
 import 'type_path.dart';
-import 'member.dart';
 import 'any_method.dart';
-import 'operator.dart';
 import 'class_like.dart';
+import 'value_kind.dart';
+import 'tagged_kind.dart';
 
 abstract class Kind extends ClassLike {
 	Deinit? deinit = null;
@@ -21,5 +15,17 @@ abstract class Kind extends ClassLike {
 	var isStrong = false;
 	var isUncounted = false;
 
-	Kind({required super.span, required super.name, required super.params, required super.lookup});
+	Kind({required super.span, required super.name, required super.lookup});
+
+	static Kind fromAST(ITypeLookup lookup, ast.Kind k) {
+		final cases = [
+			for(final d in k.body.of)
+				if(d is ast.Case)
+					d
+		];
+
+		return cases.isNotEmpty && cases.every((c) => c.kind is ast.CScalar)
+			? ValueKind.fromAST(lookup, k)
+			: TaggedKind.fromAST(lookup, k);
+	}
 }

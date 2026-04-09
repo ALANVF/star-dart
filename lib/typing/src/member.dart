@@ -7,6 +7,7 @@ import 'traits.dart';
 import 'type.dart';
 import 'expr.dart';
 import 'any_type_decl.dart';
+import 'type_path.dart';
 
 
 class Member implements IDecl {
@@ -29,94 +30,61 @@ class Member implements IDecl {
 		required this.decl,
 		required this.span,
 		required this.name,
-		required this.type
+		required this.type,
+		required this.value,
 	});
 
-	/*
-	static function fromAST(decl: AnyTypeDecl, ast: parsing.ast.decls.Member) {
+	static Member fromAST(AnyTypeDecl decl, ast.Member ast) {
 		final declSpan = Span.range(ast.span, ast.name.span);
 
-		final member: Member = {
+		final member = Member(
 			decl: decl,
 			span: ast.span,
 			name: ast.name,
-			type: ast.type._and(t => decl.makeTypePath(t)),
+			type: ast.type == null? null : decl.makeTypePath(ast.type!.toPath),
 			value: ast.value
-		};
+		);
 
-		var getterSpan = null;
-		var setterSpan = null;
+		Span? getterSpan, setterSpan;
 
-		for(attr => span in ast.attrs) switch attr {
-			case IsStatic: member.isStatic = true;
+		if(ast.attrs.isStatic != null) member.isStatic = true;
 
-			case IsHidden(_) if(member.hidden != null): member.errors.push(Type_DuplicateAttribute(member, ast.name.name, "hidden", span));
-			case IsHidden(None): member.hidden = None;
-			case IsHidden(Some(outsideOf)): member.hidden = Some(decl.makeTypePath(outsideOf));
-
-			case IsReadonly: member.isReadonly = true;
-
-			case IsGetter(_) if(member.getter != null): member.errors.push(Type_DuplicateAttribute(member, ast.name.name, "getter", span));
-			case IsGetter(name):
-				member.getter = name;
-				getterSpan = span;
-
-			case IsSetter(_) if(member.setter != null): member.errors.push(Type_DuplicateAttribute(member, ast.name.name, "setter", span));
-			case IsSetter(name):
-				member.setter = name;
-				setterSpan = span;
-
-			case IsNoinherit: member.noInherit = true;
+		switch(ast.attrs.isHidden) {
+			case (_, var outsideOf?): member.hidden = (decl.makeTypePath(outsideOf.toPath),);
+			case (_, null): member.hidden = (null,);
 		}
 
-		switch member.getter {
-			case Some({span: s, name: n}) if(n == ast.name.name):
-				member.errors.push(Type_RedundantGetter(
-					member.name.name,
-					declSpan,
-					n,
-					Span.range(getterSpan.nonNull(), s)
-				));
-			
-			default:
+		if(ast.attrs.isReadonly != null) member.isReadonly = true;
+
+		if(ast.attrs.isGetter case (var s, var getter)) {
+			getterSpan = s;
+			member.getter = (getter,);
 		}
 
-		switch member.setter {
-			case Some({span: s, name: n}) if(n == ast.name.name):
-				member.errors.push(Type_RedundantSetter(
-					member.name.name,
-					declSpan,
-					n,
-					Span.range(setterSpan.nonNull(), s)
-				));
-			
-			default:
+		if(ast.attrs.isSetter case (var s, var setter)) {
+			setterSpan = s;
+			member.setter = (setter,);
 		}
 
-		switch member {
-			case {getter: None, setter: None}:
-				member.errors.push(Type_RedundantGetterSetter(
-					member.name.name,
-					declSpan,
-					getterSpan.nonNull(),
-					setterSpan.nonNull()
-				));
+		if(ast.attrs.isNoinherit != null) member.isNoinherit = true;
 
-			case {getter: Some({name: n1}), setter: Some({name: n2})} if(n1 == ast.name.name && n1 == n2):
-				member.errors.push(Type_RedundantGetterSetter(
-					member.name.name,
-					declSpan,
-					getterSpan.nonNull(),
-					setterSpan.nonNull()
-				));
-				
-			default:
+		if(member.getter case (Ident(name: var n, span: var s),)) if(n == ast.name.name) {
+			member.errors.add(StarError.redundantGetter(n, declSpan, Span.range(getterSpan!, s)));
 		}
 
+		if(member.setter case (Ident(name: var n, span: var s),)) if(n == ast.name.name) {
+			member.errors.add(StarError.redundantSetter(n, declSpan, Span.range(setterSpan!, s)));
+		}
+
+		switch(member) {
+			case Member(getter: (null,), setter: (null,)):
+			case Member(getter: (var i1?,), setter: (var i2?,)) when i1.name == ast.name.name && i1.name == i2.name:
+				member.errors.add(StarError.redundantGetterSetter(member.name.name, declSpan, getterSpan!, setterSpan!));
+		}
+		
 		return member;
 	}
-	*/
-
+	
 
 	/* implements IErrors */
 

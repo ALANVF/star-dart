@@ -15,7 +15,7 @@ import 'ctx.dart';
 import 'type_decl.dart';
 
 abstract class Namespace extends TypeDecl {
-	final parents = <Type>[];
+	late List<Type> parents;
 	final decls = MultiMap<String, TypeDecl>.empty();
 	final sortedDecls = <TypeDecl>[];
 	final staticMembers = <Member>[];
@@ -25,7 +25,7 @@ abstract class Namespace extends TypeDecl {
 	(Type?,)? sealed = null;
 	final categories = <Category>[];
 
-	Namespace({required super.span, required super.name, required super.params, required super.lookup});
+	Namespace({required super.span, required super.name, required super.lookup});
 
 	void addTypeDecl(TypeDecl decl) {
 		decls.add(decl.name.name, decl);
