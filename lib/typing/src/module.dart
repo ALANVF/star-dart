@@ -79,9 +79,9 @@ class Module extends Namespace {
 			case ast.Method m:
 				if(StaticMethod.fromAST(module, m) case var mth?) module.staticMethods.add(mth);
 			
-			case ast.DefaultInit d:
+			case ast.DefaultInit i:
 				if(module.staticInit != null) module.errors.add(StarError.duplicateDecl(decl, module));
-				else module.staticInit = StaticInit.fromAST(module, d);
+				else module.staticInit = StaticInit.fromAST(module, i);
 			
 			case ast.Deinit d:
 				if(module.staticDeinit != null) module.errors.add(StarError.duplicateDecl(decl, module));
