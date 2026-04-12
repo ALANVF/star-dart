@@ -1,4 +1,5 @@
 import 'package:star/ast/ast.dart' as ast;
+import 'package:star/ast/ast.dart' show Ident;
 import 'package:star/text/src/span.dart';
 import 'package:star/errors/errors.dart';
 import 'package:star/typing/src/ctx.dart';
@@ -18,8 +19,8 @@ import 'cache.dart';
 
 class Category extends AnyTypeDecl {
 	final typevars = MultiMap<String, TypeVar>.empty();
-	Type path;
-	Type? target;
+	late Type path;
+	late Type? target;
 	final staticMembers = <Member>[];
 	final staticMethods = <StaticMethod>[];
 	final methods = <Method>[];
@@ -30,14 +31,63 @@ class Category extends AnyTypeDecl {
 	(Type?,)? hidden = null;
 	final friends = <Type>[];
 
-	Category({
-		required super.span, required super.name, required super.lookup,
-		required this.path,
-		required this.target
-	});
+	Category({required super.span, required super.name, required super.lookup});
 
 	static Category fromAST(ITypeLookup lookup, ast.Category c) {
-		throw "todo";
+		final category = Category(
+			lookup: lookup,
+			span: c.span,
+			name: Ident(c.path.simpleName, c.path.span),
+		);
+
+		category.path = c.path.toPath.toType(category);
+		category.target = c.target != null ? category.makeTypePath(c.target!.toPath) : null;
+
+		category.thisType = category.target ?? (lookup as AnyTypeDecl).thisType;
+
+		for(final t in c.typevars) {
+			final tv = TypeVar.fromAST(category, t);
+			category.typevars.add(tv.name.name, tv);
+		}
+
+		switch(c.attrs.isHidden) {
+			case (_, var outsideOf?): category.hidden = (lookup.makeTypePath(outsideOf.toPath),);
+			case (_, null): category.hidden = (null,);
+		}
+
+		switch(c.attrs.isFriend) {
+			case (_, ast.OneType(:var type)): category.friends.add(category.makeTypePath(type.toPath));
+			case (_, ast.ManyTypes(:var types)):
+				for(final type in types) category.friends.add(category.makeTypePath(type.toPath));
+		}
+
+		for(final decl in c.body.of) switch(decl) {
+			case ast.Member m when m.attrs.isStatic != null: category.staticMembers.add(Member.fromAST(category, m));
+			
+			case ast.Method m when m.attrs.isStatic != null:
+				if(StaticMethod.fromAST(category, m) case var mth?) category.staticMethods.add(mth);
+			case ast.Method m:
+				category.methods.add(Method.fromAST(category, m));
+			
+			case ast.Init i: category.inits.add(Init.fromAST(category, i));
+
+			case ast.Operator o:
+				if(Operator.fromAST(category, o) case var op?) category.operators.add(op);
+			
+			case ast.DefaultInit i when i.attrs.isStatic != null:
+				if(category.staticInit != null) category.errors.add(StarError.duplicateDecl(decl, category));
+				else category.staticInit = StaticInit.fromAST(category, i);
+			
+			case ast.Deinit d when d.attrs.isStatic != null:
+				if(category.staticDeinit != null) category.errors.add(StarError.duplicateDecl(decl, category));
+				else category.staticDeinit = StaticDeinit.fromAST(category, d);
+			
+			default:
+				category.errors.add(StarError.unexpectedDecl(decl, category));
+		}
+
+
+		return category;
 	}
 
 
@@ -50,7 +100,9 @@ class Category extends AnyTypeDecl {
 		|| staticMethods.any((m) => m.hasErrors())
 		|| methods.any((m) => m.hasErrors())
 		|| inits.any((i) => i.hasErrors())
-		|| operators.any((o) => o.hasErrors()));
+		|| operators.any((o) => o.hasErrors())
+		|| (staticInit?.hasErrors() ?? false)
+		|| (staticDeinit?.hasErrors() ?? false));
 
 	List<StarError> allErrors() => [
 		...errors,
@@ -59,7 +111,9 @@ class Category extends AnyTypeDecl {
 		for(final m in staticMethods) ...m.allErrors(),
 		for(final m in methods) ...m.allErrors(),
 		for(final i in inits) ...i.allErrors(),
-		for(final o in operators) ...o.allErrors()
+		for(final o in operators) ...o.allErrors(),
+		... staticInit?.allErrors() ?? [],
+		... staticDeinit?.allErrors() ?? [],
 	];
 
 

@@ -76,7 +76,6 @@ abstract class StaticMethod extends AnyMethod {
 
 abstract class Method extends AnyMethod {
 	Type? ret;
-	var isMain = false;
 	var isGetter = false;
 	var isSetter = false;
 	var isInline = false;
