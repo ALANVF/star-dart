@@ -111,6 +111,10 @@ extension type const Char(int char) implements int {
 	bool isAsciiPrintable() => 32 <= char && char <= 126;
 
 	bool isAsciiControl() => (0 <= char && char < 32) || char == 127;
+
+	bool isLower() => a <= char && char <= z;
+
+	bool isUpper() => A <= char && char <= Z;
 }
 
 sealed class Either<L, R> {

@@ -7,6 +7,6 @@ class StarProject extends StarDir {
 	StarFile? main;
 	bool useStdlib;
 
-	StarProject({required super.name, required super.path, required super.units, required super.files,
+	StarProject({required super.name, required super.path,
 				required this.main, required this.useStdlib});
 }

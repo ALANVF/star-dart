@@ -13,8 +13,8 @@ final class Lexer {
 
 	Lexer(this.source): reader = Reader(source.text);
 
-	(List<Object>, List<Token>) tokenize() {
-		final errors = <Object>[];
+	(List<StarError>, List<Token>) tokenize() {
+		final errors = <StarError>[];
 		final tokens = <Token>[];
 		while(true) {
 			try {
@@ -24,7 +24,7 @@ final class Lexer {
 				break;
 			} catch (e) {
 				print('$e ${e.runtimeType}');
-				errors.add(e);
+				errors.add(e as StarError);
 			}
 		}
 

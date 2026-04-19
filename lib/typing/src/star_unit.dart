@@ -7,6 +7,15 @@ class StarUnit extends StarDir {
 	StarDir outer;
 	StarFile? primary;
 
-	StarUnit({required super.name, required super.path, required super.units, required super.files,
-				required this.outer, required this.primary});
+	StarUnit({required super.name, required super.path,
+				required this.outer});
+	
+
+	/* extends StarDir */
+
+	@override
+	void gatherFiles(List<StarFile> gather) {
+		if(primary != null) gather.add(primary!);
+		super.gatherFiles(gather);
+	}
 }

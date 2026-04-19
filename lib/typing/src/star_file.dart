@@ -7,6 +7,9 @@ import 'package:star/typing/src/ctx.dart';
 import 'package:star/typing/src/lookup_path.dart';
 import 'package:star/typing/src/type_path.dart';
 import 'package:star/util.dart';
+import 'package:star/lexing/lexing.dart';
+import 'package:star/parsing/parsing.dart' as parser;
+import 'package:star/ast/ast.dart' as ast;
 
 import 'star_dir.dart';
 import 'star_unit.dart';
@@ -40,6 +43,74 @@ class StarFile implements ITypeLookup, IErrors {
 		decls.add(decl.name.name, decl);
 		sortedDecls.add(decl);
 	}
+
+	void parse() {
+		final (diags, tokens) = Lexer(source).tokenize();
+		errors.addAll(diags);
+		
+		final result = parser.parse(tokens);
+
+		switch(result) {
+			case ast.PModular(errors: []) || ast.PScript(errors: []):
+				status = diags.isEmpty;
+			
+			case ast.PModular(:var errors) || ast.PScript(:var errors):
+				for(final (i, error) in errors.indexed) {
+					this.errors.add(error);
+
+					if(i == 25) {
+						this.errors.add(StarError.tooManyErrors());
+						break;
+					}
+				}
+		}
+
+		program = result;
+	}
+
+	/*
+	function buildImports() {
+		program.forEach(prog -> {
+			final decls = switch prog {
+				case Modular(_, decls2): decls2;
+				case Script(_, decls2): decls2.filterMap(decl -> switch decl {
+					case SDecl(decl2): decl2;
+					default: null;
+				});
+			};
+			var lastWasUse = true;
+
+			for(decl in decls) switch decl {
+				case DUse({span: span, kind: kind, generics: typevars}):
+					if(!lastWasUse) {
+						lastWasUse = true;
+						errors.push(Type_UnorganizedCode(span));
+					}
+
+					if(typevars != Nil) {
+						throw "NYI!";
+					}
+
+					switch kind {
+					case Import(spec, from, as):
+						imports.push({
+							span: span,
+							spec: spec,
+							from: Option.fromNull(from),
+							as: as._andOr(a => Some(a._2), None)
+						});
+					
+					case Pragma(span2, pragma):
+						status = false;
+						errors.push(Type_UnknownPragma(pragma, span2));
+						continue;
+					}
+
+				default: if(lastWasUse) lastWasUse = false;
+			}
+		});
+	}*/
+
 
 
 	/* implements IErrors */
